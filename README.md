@@ -1,29 +1,182 @@
-# Create T3 App
+# ⚡ Zenoryx – AI-Powered GITHUB Code Assistant
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+🚀 **Live at:** [https://zenoryx.vercel.app](https://zenoryx.vercel.app)
 
-## What's next? How do I make an app with this?
+Zenoryx is an intelligent, AI-powered code assistant that helps developers analyze GitHub repositories, track commit-level changes, and manage project documentation — all in one sleek, fast interface.
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+> ✨ Built with **Next.js App Router**, **tRPC**, **Prisma**, **Clerk**, and **LLM APIs** (Gemini, OpenAI, etc.)
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+---
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+## 🧠 Features
 
-## Learn More
+### 🔍 GitHub Repo Intelligence
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+- Connect public or private GitHub repositories via URL
+- Extract and summarize all code files using AI
+- Generate vector embeddings for each file using local or cloud-based models
+- Store summaries and embeddings in PostgreSQL with pgvector
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+### 🧾 Commit History Summarization
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+- Automatically fetch commits for each repo
+- Summarize diffs using LLMs (e.g., Gemini, GPT)
+- See commit messages, dates, authors, and AI-generated insights in one view
 
-## How do I deploy this?
+### 🧪 AI Q&A
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+- Ask questions about your codebase or commits
+- Get context-aware answers with file references
+- Thanks to Vector Embeddings and LLM!
+
+### 👥 Team-Based Project Management
+
+- Each user can manage multiple projects
+- Teams and collaborators supported (via `userToProject` table)
+- Credits system in place to limit overuse (per user)
+
+---
+
+## 🧰 Tech Stack
+
+| Layer      | Tech Used                                |
+| ---------- | ---------------------------------------- |
+| Frontend   | Next.js 14 (App Router), Tailwind CSS    |
+| Backend    | tRPC, React Query, Prisma ORM            |
+| Auth       | Clerk (JWT + session-based)              |
+| AI/ML      | Gemini, Groq, OpenRouter                 |
+| Vector DB  | PostgreSQL + `pgvector`, NeonDB          |
+| Hosting    | Vercel (frontend + API routes)           |
+| Storage    | Prisma schema with Postgres (via NeonDB) |
+| State Mgmt | React Query + `useLocalStorage`          |
+
+---
+
+## 📦 Project Structure
+
+```
+├── prisma/                 # Prisma schema and migration files
+│   └── schema.prisma
+├── public/                 # Static assets
+├── src/
+│   ├── app/                # App Router pages (Next.js 14)
+│   │   ├── api/            # API routes (e.g., auth, sync-user)
+│   │   ├── sign-in/        # Sign-in page
+│   │   ├── sign-up/        # Sign-up page
+│   │   ├── sync-user/      # Sync Local DB alsongside Clerk
+│   │   ├── banner.tsx      # Static landing page banner
+│   │   ├── layout.tsx      # App-wide layout
+│   │   ├── page.tsx        # App landing/homepage
+│   │   ├── _components/    # Shared layout components
+│   │   └── (protected)/    # Auth-protected routes
+│   │       ├── billing/
+│   │       ├── create/
+│   │       ├── dashboard/
+│   │       ├── join/
+│   │       ├── meetings/
+│   │       ├── qa/
+│   │       ├── layout.tsx
+│   │       └── app-sidebar.tsx
+│   ├── components/         # Reusable UI components
+│   ├── hooks/              # Custom React hooks
+│   ├── lib/                # Utilities: GitHub loaders, summarizers, etc.
+│   ├── server/             # Backend logic
+│   ├── styles/             # Tailwind and global styles
+│   ├── trpc/               # React-side tRPC client setup
+│   └── env.js              # Environment variable loader
+|   |__middleware.ts        #Clerk Middleware
+├── .env                    # Main environment file
+├── .env.example            # Sample environment variables
+├── .gitignore              # Git ignored files
+├── bun.lock                # Bun dependency lock file
+├── components.json         # UI config for shadcn/ui
+├── eslint.config.js        # ESLint config
+├── next-env.d.ts           # Next.js types
+├── next.config.js          # Next.js config
+├── package.json            # Project metadata and scripts
+├── postcss.config.js       # Tailwind/PostCSS config
+├── prettier.config.js      # Code formatter config
+├── start-database.sh       # Local DB boot script
+├── tsconfig.json           # TypeScript config
+└── README.md               # Project overview
+```
+
+---
+
+## 🚦 Environment Variables
+
+Create a `.env` file at the root:
+
+```env
+DATABASE_URL=postgresql://neondb...
+CLERK_SECRET_KEY=...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=...
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL='/sync-user'
+GROQ_API_KEY=...
+GEMINI_API_KEY=...            # For Gemini Embedding Model
+OPENROUTER_API_KEY=...
+```
+
+---
+
+## 🔧 Installation & Dev Setup
+
+```bash
+git clone https://github.com/ivruhs/zenoryx.git
+cd zenoryx
+pnpm install
+
+# Setup Prisma
+pnpm prisma generate
+pnpm prisma db push
+
+# Run dev server
+pnpm dev
+```
+
+---
+
+## ⚙️ CLI Commands
+
+```bash
+pnpm prisma db push            # Sync DB schema
+pnpm prisma studio             # Browse data
+pnpm dev                       # Run app locally
+pnpm lint                      # Run linter
+```
+
+---
+
+## 🔐 Auth & Access Control
+
+- Users are authenticated via Clerk
+- Each project is scoped to the logged-in user
+- Projects have many-to-many `userToProject` relation
+- Middleware ensures only authorized access
+
+---
+
+## 🙌 Credits
+
+Built with ❤️ using:
+
+- [Next.js](https://nextjs.org/)
+- [tRPC](https://trpc.io/)
+- [Clerk.dev](https://clerk.dev/)
+- [NeonDB](https://neon.com/)
+- [Gemini API](https://ai.google.dev/)
+- [Prisma](https://prisma.io/)
+- [OpenRouter] (https://openrouter.ai/)
+- [Groq] (https://groq.com/)
+
+---
+
+## 🌐 Live Demo
+
+👉 **[https://zenoryx.vercel.app](https://zenoryx.vercel.app)**
+
+Check out the live version and try uploading your GitHub repo to see commit insights powered by AI!
