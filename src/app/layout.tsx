@@ -11,6 +11,29 @@ export const metadata: Metadata = {
   title: "Zenoryx - AI-Powered Code Assistant",
   description: "Intelligent code analysis and project management platform",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
+  openGraph: {
+    title: "Zenoryx - AI-Powered Code Assistant",
+    description:
+      "Analyze GitHub repos, track commits, and ask AI questions about your codebase.",
+    url: "https://zenoryx.vercel.app",
+    siteName: "Zenoryx",
+    images: [
+      {
+        url: "/image.png", // since it's in public/, just use the relative path
+        width: 1200,
+        height: 630,
+        alt: "Zenoryx Preview",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Zenoryx - AI-Powered Code Assistant",
+    description:
+      "Intelligent GitHub repo summarization and commit tracking tool.",
+    images: ["/image.png"], // same relative path
+  },
 };
 
 const geist = Geist({
