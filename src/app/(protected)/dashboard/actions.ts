@@ -296,3 +296,18 @@ Instructions:
     };
   }
 }
+
+/*
+🏗️ System Architecture Flow
+🔄 Complete Request Flow
+
+📝 Input validation → Ensures question and projectId exist
+🔐 Environment check → Validates API key configuration
+🧮 Vector embedding → Converts question to semantic vector
+🔍 Database search → Finds relevant code files using cosine similarity
+📋 Context building → Combines relevant files into prompt context
+🚦 Rate limiting → Checks and enforces API usage limits
+🧠 LLM inference → Generates AI response using Groq/LLaMA
+📡 Real-time streaming → Sends response chunks to client
+🎁 Result packaging → Returns stream and file references
+*/

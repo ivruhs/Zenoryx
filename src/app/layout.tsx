@@ -32,6 +32,9 @@ export default function RootLayout({
           <div className="mt-2"></div>
           <Banner />
           <TRPCReactProvider>{children}</TRPCReactProvider>
+          {/* 👈 Wrap children with TRPCReactProvider */}
+          {/* Helps in making backend API calls */}
+          {/* autocomplete + type safety in frontend */}
           <Toaster
             richColors
             position="top-right"

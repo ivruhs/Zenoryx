@@ -11,6 +11,7 @@ const RETRY_DELAY_MS = 1500;
 
 // ✅ Token-safe Octokit creation
 const createOctokit = (token?: string) => new Octokit({ auth: token });
+//Creates authenticated Octokit instances with optional GitHub tokens
 
 const getFileCount = async (
   path: string,
@@ -25,6 +26,10 @@ const getFileCount = async (
     path,
   });
 
+  //Type check: data.type === "file" confirms file object
+  // Array check: !Array.isArray(data) ensures single item
+  // Increment: Adds 1 to accumulator and returns
+  // Base case: Terminates recursion for leaf nodes
   if (!Array.isArray(data) && data.type === "file") {
     return acc + 1;
   }
@@ -62,13 +67,15 @@ export const checkCredits = async (githubUrl: string, githubToken?: string) => {
   return fileCount;
 };
 
+//Loads repository files using LangChain's GitHub loader with optimized configuration
+
 export const loadGithubRepo = async (
   githubUrl: string,
   githubToken?: string,
 ): Promise<Document[]> => {
   const loader = new GithubRepoLoader(githubUrl, {
     accessToken: githubToken || "",
-    branch: "main",
+    branch: "main", //Assumes "main" as primary branch
     ignoreFiles: [
       "package-lock.json",
       "yarn.lock",
@@ -178,3 +185,27 @@ export const indexGithubRepo = async (
 
   console.log("✅ Repo indexing complete.");
 };
+
+/*
+🏗️ System Architecture Analysis
+🔄 Data Flow Pipeline:
+
+GitHub URL → Repository loading → Document array
+Documents → AI summarization → Summary text
+Summary → AI embedding → Vector representation
+Summary + Vector + Metadata → Database storage → Searchable index
+
+🚦 Concurrency Strategy:
+
+Multi-level limiting: Different limits for different operations
+Resource optimization: Prevents service overload
+Parallel processing: Maximizes throughput
+Error isolation: Individual failures don't cascade
+
+🛡️ Error Resilience:
+
+Retry mechanisms: Handles transient failures
+Graceful degradation: Continues with partial success
+Detailed logging: Enables debugging and monitoring
+Transaction safety: Database consistency maintained
+*/

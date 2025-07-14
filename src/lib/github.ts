@@ -6,7 +6,14 @@ import pLimit from "p-limit";
 import "dotenv/config";
 
 const CONCURRENCY_LIMIT = 3;
+//CONCURRENCY_LIMIT = 3:
+// 🚦 Maximum simultaneous AI summarization requests
+// Why 3?: Balances performance vs API rate limits
+// Impact: Prevents overwhelming AI service or GitHub API
+
 const MAX_COMMITS = 10;
+//📊 Maximum commits processed per request
+// Performance: Prevents excessive processing on large repositories
 
 interface Response {
   commitHash: string;
@@ -16,8 +23,17 @@ interface Response {
   commitDate: string;
 }
 
+//📝 Interface Analysis:
+// commitHash: 🔑 SHA identifier for the commit (40-character hex string)
+// commitMessage: 💬 Commit description from developer
+// commitAuthorName: 👤 Git author name (not GitHub username)
+// commitAuthorAvatar: 🖼️ Profile picture URL from GitHub
+// commitDate: 📅 ISO 8601 timestamp of commit creation
+
 // ✅ Create per-request Octokit instance with user token
 const createOctokit = (token?: string) => new Octokit({ auth: token });
+//Creates authenticated Octokit instances with optional personal access tokens
+//Rate limit benefits: Authenticated requests get higher rate limits (5000/hour vs 60/hour)
 
 export const getCommitHashes = async (
   githubUrl: string,
@@ -29,6 +45,26 @@ export const getCommitHashes = async (
   const octokit = createOctokit(githubToken);
 
   const { data } = await octokit.rest.repos.listCommits({ owner, repo });
+
+  // GitHub returns array of commit objects with nested structure:
+  // json{
+  //   "sha": "commit-hash",
+  //   "commit": {
+  //     "message": "commit message",
+  //     "author": {
+  //       "name": "Author Name",
+  //       "date": "2023-01-01T00:00:00Z"
+  //     }
+  //   },
+  //   "author": {
+  //     "avatar_url": "https://github.com/avatar.jpg"
+  //   }
+  // }
+
+  //🔄 Data Processing Pipeline:
+  //Step 1: Sorting 📅
+  //Step 2: Limiting 🔢 : slice(0, MAX_COMMITS): Takes first 10 commits
+  //Step 3: Mapping 🗺️ : Extracts relevant fields into Response format
 
   return data
     .sort(
@@ -46,6 +82,7 @@ export const getCommitHashes = async (
     }));
 };
 
+//Orchestrates the complete commit processing pipeline from fetching to database storage
 export const pullCommits = async (projectId: string, githubToken?: string) => {
   const { githubUrl } = await fetchProjectGithubUrl(projectId);
   const commitHashes = await getCommitHashes(githubUrl, githubToken);
@@ -53,6 +90,8 @@ export const pullCommits = async (projectId: string, githubToken?: string) => {
     projectId,
     commitHashes,
   );
+  //Efficiency: Avoids reprocessing existing commits
+  // Database query: Checks existing commit hashes
 
   const limit = pLimit(CONCURRENCY_LIMIT);
 
@@ -62,6 +101,9 @@ export const pullCommits = async (projectId: string, githubToken?: string) => {
     ),
   );
 
+  //Promise.allSettled: Handles partial failures gracefully
+  //map() + limit(): Applies concurrency control to each commit
+
   const summaries = summaryResponses.map((response, index) => {
     if (response.status === "fulfilled") return response.value as string;
     console.error(
@@ -70,6 +112,7 @@ export const pullCommits = async (projectId: string, githubToken?: string) => {
     return `⚠️ Could not summarise commit ${unprocessedCommits[index]!.commitHash}`;
   });
 
+  //createMany: Bulk insert for performance
   await db.commit.createMany({
     data: summaries.map((summary, index) => {
       const commit = unprocessedCommits[index];
@@ -122,6 +165,7 @@ async function summariseCommit(
 
     // Fix URL construction - move the string manipulation outside the template literal
     const repoPath = githubUrl.split("github.com/")[1]!.replace(/\/$/, "");
+    //Gets everything after "github.com/" //Removes trailing slash if present
 
     const apiUrl = `https://api.github.com/repos/${repoPath}/commits/${commitHash}`;
 
@@ -130,10 +174,12 @@ async function summariseCommit(
 
     const { data } = await axios.get(apiUrl, {
       headers: {
-        Accept: "application/vnd.github.v3.diff",
-        ...(githubToken && { Authorization: `Bearer ${githubToken}` }),
+        Accept: "application/vnd.github.v3.diff", //📋 Requests diff format instead of JSON
+        ...(githubToken && { Authorization: `Bearer ${githubToken}` }), //adds header only if token exists
       },
     });
+
+    //With diff accept header, GitHub returns unified diff format:
 
     console.log(`[summariseCommit] Diff fetched for ${commitHash}`);
     return await aiSummariseCommit(data);
@@ -163,6 +209,7 @@ async function fetchProjectGithubUrl(projectId: string) {
   return { githubUrl: project.githubUrl };
 }
 
+//Filters out commits that have already been processed to avoid duplicate work
 async function filterUnprocessedCommits(
   projectId: string,
   commitHashes: Response[],
@@ -171,3 +218,29 @@ async function filterUnprocessedCommits(
   const processedSet = new Set(processed.map((p) => p.commitHash));
   return commitHashes.filter((c) => !processedSet.has(c.commitHash));
 }
+
+/*
+🏗️ System Architecture Analysis
+🔄 Data Flow:
+
+Project ID → Database lookup → GitHub URL
+GitHub URL → API call → Recent commits
+Commit hashes → Database check → Unprocessed commits
+Commit hash → GitHub API → Diff content
+Diff content → AI service → Summary
+Summary + metadata → Database → Stored commits
+
+🚦 Concurrency Strategy:
+
+Parallel processing: Multiple commits processed simultaneously
+Rate limiting: Prevents API abuse
+Error isolation: Individual commit failures don't affect others
+Resource management: Limits memory and CPU usage
+
+🛡️ Error Resilience:
+
+Graceful degradation: System continues with partial failures
+Detailed logging: Enables debugging and monitoring
+Fallback values: Provides meaningful error messages to users
+Transaction safety: Database operations are atomic
+*/
