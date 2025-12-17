@@ -80,7 +80,7 @@
     "ignore": "^7.0.5",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.525.0",
-    "next": "^15.2.3",
+    "next": "15.2.8",
     "next-themes": "^0.4.6",
     "octokit": "^5.0.3",
     "p-limit": "^6.2.0",
