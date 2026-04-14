@@ -8,7 +8,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 // Gemini embedding model
 const embeddingModel = genAI.getGenerativeModel({
-  model: "text-embedding-004",
+  model: "text-embedding-001",
 });
 
 // Utility: Run Ollama prompt using `ollama run`
