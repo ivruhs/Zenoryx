@@ -32,8 +32,13 @@ function fallbackChunkCode(content) {
   const CHUNK_SIZE = 1500;
   const OVERLAP = 200;
   const chunks = [];
+  const MAX_CHUNKS = 50; // 🚨 Hard limit to prevent infinite loops
 
   for (let i = 0; i < content.length; i += CHUNK_SIZE - OVERLAP) {
+    if (chunks.length >= MAX_CHUNKS) {
+      logger.warn(`[Chunker] Truncating fallback to ${MAX_CHUNKS} chunks.`);
+      break;
+    }
     chunks.push({
       content: content.substring(i, i + CHUNK_SIZE),
       chunkIndex: chunks.length,

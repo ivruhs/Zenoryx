@@ -16,6 +16,22 @@ const chunker = require("../lib/chunker");
 const fileUtils = require("../lib/fileUtils");
 const logger = require("../lib/logger");
 
+const withTimeout = (promise, ms, operationName) => {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () =>
+        reject(
+          new Error(`[Timeout] ${operationName} took longer than ${ms}ms`),
+        ),
+      ms,
+    );
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() =>
+    clearTimeout(timeoutId),
+  );
+};
+
 /**
  *
  * The main job processor. this function is called every time a job is pulled from the queue.
@@ -40,19 +56,20 @@ async function processIngestion(job) {
     const codeFiles = tree.filter(
       (f) => f.type === "blob" && fileUtils.isCodeFile(f.path),
     );
-    // We enforce the 25 limit again here just as a failsafe
+
+    // Enforcing limit for V1
     const filesToProcess = codeFiles.slice(0, 25);
     let totalProcessedSize = 0;
 
     for (const file of filesToProcess) {
       logger.debug(`Downloading file ${file.path} from GitHub...`);
 
-      // download raw text content of the file from GitHub
       const fileContent = await githubService.getRawFile(
         project.repoOwner,
         project.repoName,
         file.path,
       );
+
       const fileSize = Buffer.byteLength(fileContent, "utf-8");
       if (fileUtils.exceedsSize(fileSize)) {
         logger.warn(`Skipping ${file.path} - exceeds 1MB limit`);
@@ -65,10 +82,9 @@ async function processIngestion(job) {
       const chunks = chunker.chunkCode(fileContent, language);
 
       for (const chunk of chunks) {
-        if (chunk.content.trim().length < 20) continue; // skip tiny chunks that are likely not useful
+        if (chunk.content.trim().length < 20) continue;
 
-        // 🚨 NEW IDEMPOTENCY CHECK 🚨
-        // Check if this specific chunk is already in the database
+        // 🚨 IDEMPOTENCY CHECK
         const existingChunk = await prisma.$queryRaw`
           SELECT id FROM code_chunks 
           WHERE "projectId" = ${projectId} 
@@ -84,23 +100,39 @@ async function processIngestion(job) {
           continue;
         }
 
-        // generate the 3-bullet summary and the 3072-dim vector
-        const summary = await geminiService.generateSummary(chunk.content);
-        const embedding = await geminiService.generateEmbedding(chunk.content);
+        // 🚨 INTERNAL ERROR BOUNDARY: Prevents one bad API call from crashing the whole file
+        try {
+          const summary = await withTimeout(
+            geminiService.generateSummary(chunk.content),
+            10000,
+            "Gemini Summary",
+          );
+          const embedding = await withTimeout(
+            geminiService.generateEmbedding(chunk.content),
+            10000,
+            "Gemini Embedding",
+          );
 
-        // Format the embedding array for Postgres: '[0.123, -0.456, ...]'
-        const vectorString = `[${embedding.join(",")}]`;
-        const chunkId = crypto.randomUUID();
+          const vectorString = `[${embedding.join(",")}]`;
+          const chunkId = crypto.randomUUID();
 
-        // 6. Save to databse via raw SQL query to bypass Prisma's limitations with vector types
-        await prisma.$executeRaw`
-        INSERT INTO "code_chunks" ("id", "filePath", "chunkIndex", "summary", "content", "embedding", "projectId")
-          VALUES (${chunkId}, ${file.path}, ${chunk.chunkIndex}, ${summary}, ${chunk.content}, ${vectorString}::vector, ${projectId})
-        `;
+          await prisma.$executeRaw`
+          INSERT INTO "code_chunks" ("id", "filePath", "chunkIndex", "summary", "content", "embedding", "projectId")
+            VALUES (${chunkId}, ${file.path}, ${chunk.chunkIndex}, ${summary}, ${chunk.content}, ${vectorString}::vector, ${projectId})
+          `;
+
+          // 🚨 500ms breather to prevent API rate limits
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (apiError) {
+          logger.warn(
+            `Skipping chunk ${chunk.chunkIndex} in ${file.path}: ${apiError.message}`,
+          );
+          continue; // Move to the next chunk safely
+        }
       }
     }
 
-    // 7. process recent commits for the timeline
+    // 7. process recent commits
     logger.info("Fetching recent commits for summarization...");
     const commits = await githubService.getCommits(
       project.repoOwner,
@@ -114,7 +146,6 @@ async function processIngestion(job) {
       const authorEmail = commitData.commit.author.email;
       const date = new Date(commitData.commit.author.date);
 
-      // fetch the unified diff and summarize it with Groq
       const diffText = await githubService.getCommitDiff(
         project.repoOwner,
         project.repoName,
@@ -134,7 +165,8 @@ async function processIngestion(job) {
         },
       });
     }
-    // 8. Mark Project as READY and update the final true file count
+
+    // 8. Mark Project as READY
     await prisma.project.update({
       where: { id: projectId },
       data: {
@@ -146,7 +178,6 @@ async function processIngestion(job) {
 
     logger.info({ projectId }, "Ingestion completed successfully!");
   } catch (error) {
-    // If anything fails during the pipeline, mark the project as FAILED so the UI can update
     logger.error(error, `Job failed for project ${projectId}`);
     await prisma.project.update({
       where: { id: projectId },
@@ -156,7 +187,7 @@ async function processIngestion(job) {
           error.message || "An unknown error occurred during ingestion.",
       },
     });
-    throw error; // Let BullMQ know the job failed so it can trigger retries
+    throw error;
   }
 }
 

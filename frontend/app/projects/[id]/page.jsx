@@ -2,7 +2,8 @@
 "use client";
 
 import { use, useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query"; // Added useMutation
+import { useRouter } from "next/navigation"; // Added useRouter
 import { apiClient } from "@/lib/apiClient";
 import { queryKeys } from "@/lib/queryKeys";
 import { useProjectStatus } from "@/hooks/useProjectStatus";
@@ -29,6 +30,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 export default function ProjectQAPage({ params }) {
   const unwrappedParams = use(params);
   const projectId = unwrappedParams.id;
+  const router = useRouter(); // Initialize router
 
   // --- 1. DATA FETCHING ---
   const { data: projectDetails } = useQuery({
@@ -61,7 +63,34 @@ export default function ProjectQAPage({ params }) {
   const scrollRef = useRef(null);
   const prevIsStreaming = useRef(isStreaming);
 
+  // NEW: Timeout State for the escape hatch
+  const [isTakingTooLong, setIsTakingTooLong] = useState(false);
+
   const chatHistory = histories[projectId] || [];
+
+  // NEW: 5-Minute Timer Effect
+  useEffect(() => {
+    let timer;
+    if (currentStatus === "PROCESSING" || currentStatus === "PENDING") {
+      timer = setTimeout(
+        () => {
+          setIsTakingTooLong(true);
+        },
+        5 * 60 * 1000,
+      ); // 5 minutes
+    }
+    return () => clearTimeout(timer);
+  }, [currentStatus]);
+
+  // NEW: Delete Mutation for the escape hatch
+  const deleteMutation = useMutation({
+    mutationFn: () => apiClient.delete(`/projects/${projectId}`),
+    onSuccess: () => {
+      // Clear history and boot them back to the ingest page
+      clearProjectHistory(projectId);
+      router.push("/projects/new");
+    },
+  });
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -139,11 +168,38 @@ export default function ProjectQAPage({ params }) {
                     ? "Analyzing Codebase"
                     : "Queued for Ingestion"}
                 </h2>
-                <p className="text-slate-500 text-sm">
-                  Zenoryx is currently chunking files and generating vector
-                  embeddings. This usually takes 1-3 minutes depending on
-                  repository size.
-                </p>
+
+                {/* NEW: Escape Hatch UI toggles based on the 5-minute timer */}
+                {!isTakingTooLong ? (
+                  <p className="text-slate-500 text-sm">
+                    Zenoryx is currently chunking files and generating vector
+                    embeddings. This usually takes 1-3 minutes depending on
+                    repository size.
+                  </p>
+                ) : (
+                  <div className="mt-4 p-5 bg-red-50 border border-red-200 rounded-xl text-left">
+                    <h3 className="text-red-800 font-bold mb-2 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Taking longer than expected
+                    </h3>
+                    <p className="text-red-700 text-sm mb-4 leading-relaxed">
+                      This repository is either too large or the background
+                      worker encountered an unrecoverable error. You can keep
+                      waiting, or cancel this process to clean up the database
+                      and try another repository.
+                    </p>
+                    <button
+                      onClick={() => deleteMutation.mutate()}
+                      disabled={deleteMutation.isPending}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                    >
+                      {deleteMutation.isPending
+                        ? "Cleaning up..."
+                        : "Cancel & Clean Up Data"}
+                    </button>
+                  </div>
+                )}
+
                 {projectDetails && (
                   <div className="mt-6 pt-6 border-t border-slate-100 text-xs font-mono text-slate-400">
                     TARGET: {projectDetails.repoOwner}/{projectDetails.repoName}
