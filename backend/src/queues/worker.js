@@ -30,6 +30,7 @@ async function processIngestion(job) {
     where: { id: projectId },
     data: { status: "PROCESSING" },
   });
+
   try {
     //2. Fetch the file tree and filter
     const tree = await githubService.fetchRepoTree(

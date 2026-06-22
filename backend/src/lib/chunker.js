@@ -27,7 +27,6 @@ const grammars = {
 /**
  * The "dumb" fallback strategy if AST fails. Slices blindly by character count.
  */
-
 function fallbackChunkCode(content) {
   logger.debug("Using fallback character chunker");
   const CHUNK_SIZE = 1500;
@@ -47,6 +46,21 @@ function fallbackChunkCode(content) {
  * The "smart" strategy. Uses AST to extract whole, intact functions and classes.
  */
 function chunkCode(content, languageName) {
+  // 1. DEFENSIVE GUARD: Ensure content is actually a string before passing to tree-sitter
+  if (typeof content !== "string") {
+    logger.warn(
+      `[Chunker] Expected string, received ${typeof content}. Attempting to safely stringify.`,
+    );
+
+    // If it's an object with a 'content' property (common API mistake)
+    if (content && typeof content.content === "string") {
+      content = content.content;
+    } else {
+      // Fallback: Force it to a string or return empty so the app doesn't crash
+      content = String(content || "");
+    }
+  }
+
   if (!grammars[languageName]) {
     logger.warn(`No AST grammar for ${languageName}, using fallback.`);
     return fallbackChunkCode(content);
