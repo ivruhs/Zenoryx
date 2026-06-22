@@ -1,0 +1,249 @@
+// =============================================================================
+// ZENORYX BACKEND — PRISMA SCHEMA
+// PostgreSQL + pgvector (NeonDB)
+//
+// BEFORE RUNNING MIGRATIONS, execute in the NeonDB SQL editor:
+//   CREATE EXTENSION IF NOT EXISTS vector;
+//
+// Run migrations with:
+//   npx prisma migrate dev --name init
+//
+// Regenerate client after schema changes:
+//   npx prisma generate
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  // previewFeatures removed — Unsupported() type is stable in Prisma 5.x
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUM: ProjectStatus
+// Tracks the ingestion lifecycle of a repository.
+// PENDING    — Job created and enqueued in BullMQ. Worker hasn't started yet.
+// PROCESSING — Worker has picked up the job and is actively ingesting the repo.
+// READY      — All chunks and commits stored. User can now ask questions.
+// FAILED     — Worker threw an unrecoverable error after all BullMQ retries.
+// =============================================================================
+enum ProjectStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+}
+
+// =============================================================================
+// MODEL: User
+// The authenticated identity. V1 is single-user-per-project.
+// =============================================================================
+model User {
+  // Prisma CUID — collision-resistant unique ID, URL-safe, no sequential leakage
+  id        String   @id @default(cuid())
+
+  // Primary login credential — must be globally unique
+  email     String   @unique
+
+  // bcrypt hash of password (cost factor 12). Never store plain text.
+  password  String
+
+  // Display name shown in the UI — not used for auth logic
+  name      String
+
+  // Auto-set by Prisma — used for audit logs and "member since" display
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations — a user owns many sessions (multi-device login) and projects
+  sessions  Session[]
+  projects  Project[]
+
+  @@map("users")
+}
+
+// =============================================================================
+// MODEL: Session
+// Server-side session table. We use sessions instead of JWTs for two reasons:
+// 1. Instant revocation: delete the row → user is logged out immediately.
+// 2. No refresh token complexity: one token, one lookup, done.
+// =============================================================================
+model Session {
+  id           String   @id @default(cuid())
+
+  // The raw 96-character hex token (48 random bytes). Stored here, HMAC-signed
+  // version goes in the cookie. Unique constraint ensures no token collision.
+  sessionToken String   @unique
+
+  // When this session expires. Default: 7 days from creation.
+  // The auth middleware checks this on every request.
+  expiresAt   DateTime
+
+  // Stored for security auditing. Lets the user see "MacBook Chrome" sessions
+  // in a future "active sessions" UI, and helps flag suspicious logins.
+  userAgent    String
+
+  // When this session was created — useful for "logged in X days ago" display
+  createdAt   DateTime @default(now())
+
+  // Foreign key — deleting a user cascades to delete all their sessions
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Index on userId for fast "get all sessions for user" lookups
+  @@index([userId])
+  @@map("sessions")
+}
+
+// =============================================================================
+// MODEL: Project
+// Represents one ingested GitHub repository. The top-level entity that
+// CodeChunks and Commits belong to.
+// =============================================================================
+model Project {
+  id          String        @id @default(cuid())
+
+  // Display name — auto-parsed from the GitHub URL (:owner/:repo format)
+  name        String
+
+  // Full GitHub URL as submitted by the user. Used by the worker to fetch
+  // the repo and by the UI to display a clickable link to the source.
+  repoUrl     String
+
+  // GitHub repo owner (e.g. "vercel") — stored separately for Octokit API calls
+  // so we don't re-parse the URL in every service function.
+  repoOwner   String
+
+  // GitHub repo name (e.g. "next.js") — companion to repoOwner above.
+  repoName    String
+
+  // Current state in the ingestion lifecycle (see ProjectStatus enum above).
+  // Frontend polls GET /projects/:id/status until this is READY or FAILED.
+  status      ProjectStatus @default(PENDING)
+
+  // Count of code files ingested. Set by worker after filtering. Used in UI
+  // to show "23 files processed". Also used to enforce the 25-file limit check.
+  fileCount   Int           @default(0)
+
+  // Cumulative byte size of all ingested files. Stored for display and future
+  // billing/analytics. Updated by worker as it processes each file.
+  totalSize   BigInt        @default(0)
+
+  // Human-readable error message stored when status = FAILED. Displayed in UI
+  // so the user knows whether it was a rate limit, repo not found, etc.
+  errorMessage String?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Foreign key — a project is owned by exactly one user (V1 has no team support)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relations — a project has many chunks (the vector store) and many commits
+  chunks      CodeChunk[]
+  commits     Commit[]
+
+  // Index for fast "get all projects for user" queries (dashboard listing)
+  @@index([userId])
+  @@map("projects")
+}
+
+// =============================================================================
+// MODEL: CodeChunk
+// The atom of the vector store. Each row is one semantically coherent code
+// unit (function, class, or fallback text split) from a file in the project.
+// The embedding field is a pgvector column — the only Unsupported() field in
+// the schema. Queries against it use $queryRaw in vector.service.js.
+// =============================================================================
+model CodeChunk {
+  id          String             @id @default(cuid())
+
+  // Relative path from repo root (e.g. "src/auth/middleware.js"). Used in the
+  // RAG context prompt to tell the LLM which file the code came from.
+  filePath    String
+
+  // Position of this chunk within its file (0-indexed). Used to reconstruct
+  // file order when displaying chunks in UI and for debugging chunk ordering.
+  chunkIndex  Int
+
+  // The LLM-generated 3-bullet summary of this chunk. Included in the RAG
+  // context alongside raw content so Groq gets both "what it does" and "the code".
+  summary     String
+
+  // The raw source code text of this chunk. Sent verbatim to Groq as code context.
+  // Stored here so we don't need to re-fetch from GitHub during Q&A.
+  content     String
+
+  // The 3072-dimensional vector embedding from Gemini text-embedding-001.
+  // Prisma cannot natively handle pgvector columns, so we use Unsupported().
+  // This field IS written via $executeRaw and read via $queryRaw only.
+  // The vector(3072) type MUST match the embedding model's output dimension.
+  embedding   Unsupported("vector(3072)")
+
+  createdAt   DateTime           @default(now())
+
+  // Foreign key — deleting a project cascades to delete all its code chunks.
+  // This is critical: we must not leave orphaned vectors in the DB.
+  projectId   String
+  project     Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Compound unique constraint: a given chunk position in a file is unique per project.
+  // Prevents duplicate chunk insertion if the worker retries a partially completed job.
+  @@unique([projectId, filePath, chunkIndex])
+
+  // Index on projectId is critical — every similarity search filters by projectId first.
+  // Without this index, a similarity search would scan ALL chunks across ALL projects.
+  @@index([projectId])
+  @@map("code_chunks")
+}
+
+// =============================================================================
+// MODEL: Commit
+// Stores the last 10 commits of the ingested repo with AI-generated summaries.
+// Displayed in the UI as a "recent changes" timeline. Also used as additional
+// context in the RAG prompt when relevant (future enhancement).
+// =============================================================================
+model Commit {
+  id          String   @id @default(cuid())
+
+  // The full 40-character SHA hash of the commit. Used to fetch the diff via
+  // GitHub API and as a stable, deduplication-safe identifier.
+  sha         String
+
+  // The commit message as written by the developer. Shown in the UI timeline.
+  message     String
+
+  // Author's display name from the GitHub commit object — shown in the UI.
+  authorName  String
+
+  // Author's email — stored for completeness but not displayed in V1.
+  // Useful for future "filter by author" feature.
+  authorEmail String
+
+  // The timestamp of the commit from GitHub. Used to sort the timeline and
+  // display "3 days ago" relative timestamps in the UI.
+  date        DateTime
+
+  // Groq-generated 2-3 sentence plain-English summary of what changed in this
+  // commit's diff. The key value-add over just showing the raw commit message.
+  aiSummary   String
+
+  createdAt   DateTime @default(now())
+
+  // Foreign key — commits belong to exactly one project. Cascade delete ensures
+  // no orphaned commit records when a project is deleted.
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Unique per project: prevents duplicate commit rows if worker retries after
+  // partially processing commits (idempotency guard).
+  @@unique([projectId, sha])
+
+  // Index for fast "get all commits for project" queries (dashboard view).
+  @@index([projectId])
+  @@map("commits")
+}
