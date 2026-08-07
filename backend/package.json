@@ -7,6 +7,7 @@
     "schema": "src/prisma/schema.prisma"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "concurrently \"node src/server.js\" \"node src/queues/worker.js\"",
     "worker": "node src/queues/worker.js",
     "dev": "nodemon src/server.js",
