@@ -1,47 +1,168 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand Colors */
-  --color-primary: #3b5bdb;
+  /* Cyber Dark Theme Colors */
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-secondary: #14b8a6;
+  --color-secondary-hover: #0d9488;
+  --color-accent: #f59e0b;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  
+  --color-dark-bg: #08090f;
+  --color-dark-card: #11131f;
+  --color-dark-border: #22263f;
+  --color-dark-muted: #1e2238;
 
-  --color-pastel-blue: #c5d0ff;
-  --color-pastel-purple: #d8b4fe;
-  --color-pastel-green: #a6e3a1;
-  --color-pastel-amber: #fde68a;
-  --color-pastel-red: #fca5a5;
-
-  /* Typography */
-  --font-sans:
-    "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-
-  /* shadcn/ui variables */
-  --radius: 0.5rem;
-
-  --background: 220 33% 98%;
-  --foreground: 230 28% 14%;
-
-  --card: 0 0% 100%;
-  --card-foreground: 230 28% 14%;
-
-  --border: 230 40% 91%;
-  --input: 230 40% 91%;
-
-  --primary: 228 72% 54%;
-  --primary-foreground: 210 40% 98%;
-
-  --muted: 228 33% 94%;
-  --muted-foreground: 230 20% 50%;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 @layer base {
-  * {
-    border-color: hsl(var(--border));
+  body {
+    background-color: #08090f;
+    color: #e2e8f0;
+    font-family: var(--font-sans);
+    overflow-x: hidden;
   }
 
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: var(--font-sans);
+  /* Custom terminal-style scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
+  ::-webkit-scrollbar-track {
+    background: #08090f;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #22263f;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8b5cf6;
+  }
+}
+
+/* 3D Neumorphic / Cyber Extrusions */
+.card-3d {
+  background-color: #11131f;
+  border: 2px solid #22263f;
+  border-radius: 1rem;
+  box-shadow: 4px 4px 0px 0px #1e2238;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-3d:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #8b5cf6;
+  border-color: #3b4270;
+}
+
+/* Tactile 3D Buttons */
+.btn-3d {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  border: 2px solid #1e2238;
+  transition: all 0.1s ease-in-out;
+  cursor: pointer;
+}
+
+.btn-3d-primary {
+  background-color: #8b5cf6;
+  color: #ffffff;
+  border-color: #08090f;
+  box-shadow: 3px 3px 0px 0px #08090f;
+}
+.btn-3d-primary:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #08090f;
+  background-color: #7c3aed;
+}
+.btn-3d-primary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #08090f;
+}
+
+.btn-3d-secondary {
+  background-color: #14b8a6;
+  color: #ffffff;
+  border-color: #08090f;
+  box-shadow: 3px 3px 0px 0px #08090f;
+}
+.btn-3d-secondary:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #08090f;
+  background-color: #0d9488;
+}
+.btn-3d-secondary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #08090f;
+}
+
+.btn-3d-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+  border-color: #08090f;
+  box-shadow: 3px 3px 0px 0px #08090f;
+}
+.btn-3d-danger:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #08090f;
+  background-color: #dc2626;
+}
+.btn-3d-danger:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #08090f;
+}
+
+.btn-3d-slate {
+  background-color: #1e2238;
+  color: #94a3b8;
+  border-color: #22263f;
+  box-shadow: 3px 3px 0px 0px #08090f;
+}
+.btn-3d-slate:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #08090f;
+  background-color: #2a2f4c;
+  color: #f1f5f9;
+}
+.btn-3d-slate:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px #08090f;
+}
+
+/* Tactile 3D Inputs */
+.input-3d {
+  background-color: #0b0c14;
+  border: 2px solid #22263f;
+  color: #f1f5f9;
+  border-radius: 0.75rem;
+  outline: none;
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease-in-out;
+}
+
+.input-3d:focus {
+  border-color: #8b5cf6;
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+/* Glowing Neon Borders */
+.glow-border {
+  position: relative;
+}
+.glow-border::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(90deg, #8b5cf6, #14b8a6);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0.3;
+  filter: blur(4px);
 }

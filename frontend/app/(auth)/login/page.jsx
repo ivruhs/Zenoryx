@@ -1,43 +1,6 @@
 // app/(auth)/login/page.jsx
-
-/**
- * This page is the entire login workflow of our Zenoryx application.
- * When a user enters email+password and clicks sign in, this page:
-User enters email/password
-          ↓
-React Hook Form collects values
-          ↓
-Zod validates values
-          ↓
-handleSubmit()
-          ↓
-onSubmit()
-          ↓
-useMutation()
-          ↓
-POST /auth/login
-          ↓
-Backend verifies credentials
-          ↓
-Creates session cookie
-          ↓
-Returns user
-          ↓
-Zustand setUser()
-          ↓
-React Query cache cleared
-          ↓
-router.push('/dashboard')
-          ↓
-Dashboard Opens
-
-Note: useMutation is used for post,put,delete operations. Login is a POST request, so we use useMutation. For fetching data (GET requests), we would use useQuery.
-
- */
-
 "use client";
 
-// import { useForm } from "react-form"; // Note: React Hook Form implementation
 import { useForm as useReactHookForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -47,13 +10,13 @@ import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
+import { Terminal, Key, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState("");
 
-  // react hook form + zod validation setup
   const {
     register,
     handleSubmit,
@@ -62,15 +25,11 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  // this is the heart of the login flow - the mutation that sends credentials to backend and handles response. On success, it saves user to Zustand, clears cache, and redirects. On error, it shows error message.
   const loginMutation = useMutation({
     mutationFn: (credentials) => apiClient.post("/auth/login", credentials),
     onSuccess: (data) => {
-      // 1. Save user to Zustand
       useAuthStore.getState().setUser(data.user);
-      // 2. Clear any stale caches (just to be safe)
       queryClient.clear();
-      // 3. Redirect to dashboard
       router.push("/dashboard");
     },
     onError: (error) => {
@@ -78,83 +37,105 @@ export default function LoginPage() {
     },
   });
 
-  // upon form submission, we clear any previous server errors and trigger the login mutation with form data. The mutation's onSuccess and onError handlers will take care of the rest.
   const onSubmit = (data) => {
     setServerError("");
     loginMutation.mutate(data);
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-50 px-4">
-      <div className="w-full max-w-md bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+    <div className="min-h-screen bg-dark-bg text-[#e2e8f0] flex items-center justify-center px-4 relative overflow-hidden font-sans">
+      
+      {/* Background Glowing Blobs */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-primary/10 blur-[100px] pointer-events-none"></div>
+
+      <div className="w-full max-w-md relative z-10">
+        
+        {/* Logo and Greeting */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">
-            Welcome to Zenoryx
-          </h1>
-          <p className="text-slate-500 text-sm mt-2">
-            Sign in to query your repositories.
-          </p>
+          <div className="inline-flex items-center gap-2 text-2xl font-black tracking-tighter select-none mb-3">
+            <span className="p-1.5 bg-primary/20 border border-primary/40 rounded-lg text-primary shadow-[2px_2px_0px_0px_#8b5cf6]">
+              <Terminal className="w-6 h-6" />
+            </span>
+            <span>Zenoryx<span className="text-primary">.</span></span>
+          </div>
+          <h2 className="text-xl font-bold text-white tracking-tight">Welcome Back</h2>
+          <p className="text-xs text-slate-400 mt-1">Sign in to start querying your repositories.</p>
         </div>
 
-        {serverError && (
-          <div className="mb-4 p-3 bg-pastel-red/20 border border-pastel-red text-red-700 text-sm rounded-lg">
-            {serverError}
+        {/* 3D Glass Form Card */}
+        <div className="card-3d p-8 shadow-[6px_6px_0px_0px_#1e2238] bg-dark-card border-dark-border">
+          {serverError && (
+            <div className="mb-5 p-3.5 bg-danger/10 border border-danger/30 text-danger text-xs font-semibold rounded-xl flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />
+              <span>{serverError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-primary" />
+                <span>Email Address</span>
+              </label>
+              <input
+                {...register("email")}
+                type="email"
+                className="w-full px-4 py-3 input-3d text-sm font-mono"
+                placeholder="name@example.com"
+              />
+              {errors.email && (
+                <p className="text-danger text-xs mt-1.5 font-mono">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5 text-secondary" />
+                <span>Password</span>
+              </label>
+              <input
+                {...register("password")}
+                type="password"
+                className="w-full px-4 py-3 input-3d text-sm font-mono"
+                placeholder="••••••••"
+              />
+              {errors.password && (
+                <p className="text-danger text-xs mt-1.5 font-mono">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loginMutation.isPending}
+              className="w-full btn-3d btn-3d-primary py-3 text-sm"
+            >
+              {loginMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                  <span>Signing In...</span>
+                </>
+              ) : (
+                "Sign In to Account"
+              )}
+            </button>
+          </form>
+
+          {/* Redirect link */}
+          <div className="text-center text-xs text-slate-400 mt-6 pt-6 border-t border-dark-border/40">
+            Don't have an account yet?{" "}
+            <Link
+              href="/register"
+              className="text-primary hover:text-primary-hover font-bold hover:underline transition-colors ml-1"
+            >
+              Register here
+            </Link>
           </div>
-        )}
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Email
-            </label>
-            <input
-              {...register("email")}
-              type="email"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
-              placeholder="you@example.com"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Password
-            </label>
-            <input
-              {...register("password")}
-              type="password"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
-              placeholder="••••••••"
-            />
-            {errors.password && (
-              <p className="text-red-500 text-xs mt-1">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loginMutation.isPending}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2.5 rounded-lg transition-colors disabled:opacity-70"
-          >
-            {loginMutation.isPending ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-slate-500 mt-6">
-          Don't have an account?{" "}
-          <Link
-            href="/register"
-            className="text-primary hover:underline font-medium"
-          >
-            Register here
-          </Link>
-        </p>
       </div>
     </div>
   );

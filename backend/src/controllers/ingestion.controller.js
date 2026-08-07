@@ -52,14 +52,14 @@ const triggerIngestion = async (req, res, next) => {
       );
     });
 
-    // 3. the 25-file safety valve check
-    if (codeFiles.length > 25) {
+    // 3. the 15-file safety valve check
+    if (codeFiles.length > 15) {
       return res.status(400).json({
-        error: `Repository contains ${codeFiles.length} code files, exceeding the 25-file limit.`,
+        error: `Repository contains ${codeFiles.length} code files, exceeding the 15-file limit.`,
         details: {
           codeFileCount: codeFiles.length,
-          limit: 25,
-          suggestion: "Try a smaller repository or wait for V2.",
+          limit: 15,
+          suggestion: "Try a smaller repository with 15 or fewer files.",
         },
       });
     }
@@ -78,6 +78,8 @@ const triggerIngestion = async (req, res, next) => {
         repoOwner: repoOwner,
         repoName: repoName,
         status: "PENDING",
+        fileCount: codeFiles.length,
+        processedCount: 0,
         userId: req.user.id, // comes from the auth middleware (auth.guard.js)!
       },
     });
@@ -112,7 +114,67 @@ const triggerIngestion = async (req, res, next) => {
       });
     }
     next(error);
-    // next(error) will pass the error to the global error handler (present in server.js) which will log it and return a 500 Internal Server Error to the user.
+  }
+};
+
+const validateRepo = async (req, res, next) => {
+  try {
+    const { repoUrl } = req.body;
+    if (!repoUrl || !repoUrl.startsWith("https://github.com/")) {
+      return res
+        .status(400)
+        .json({ error: "Valid GitHub repository URL is required." });
+    }
+
+    const parts = repoUrl.replace("https://github.com/", "").split("/");
+    const repoOwner = parts[0];
+    const repoName = parts[1]?.replace(".git", "");
+
+    if (!repoOwner || !repoName) {
+      return res.status(400).json({ error: "Invalid GitHub URL format." });
+    }
+
+    const tree = await githubService.fetchRepoTree(repoOwner, repoName);
+    const codeFiles = tree.filter((file) => {
+      return (
+        file.type === "blob" &&
+        fileUtils.isCodeFile(file.path) &&
+        !fileUtils.exceedsSize(file.size)
+      );
+    });
+
+    if (codeFiles.length > 15) {
+      return res.status(400).json({
+        error: `Repository contains ${codeFiles.length} code files, exceeding the 15-file limit.`,
+        details: {
+          codeFileCount: codeFiles.length,
+          limit: 15,
+          suggestion: "Try a smaller repository with 15 or fewer files.",
+        },
+      });
+    }
+
+    if (codeFiles.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No supported code files found in this repository." });
+    }
+
+    return res.status(200).json({
+      valid: true,
+      fileCount: codeFiles.length,
+      files: codeFiles.map(f => ({ path: f.path, size: f.size })),
+      repoOwner,
+      repoName
+    });
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({
+        error:
+          "Repository not found. Ensure it is public and the URL is correct.",
+      });
+    }
+    next(error);
   }
 };
 
@@ -129,6 +191,7 @@ const getStatus = async (req, res, next) => {
         id: true,
         status: true,
         fileCount: true,
+        processedCount: true,
         errorMessage: true,
       },
     });
@@ -281,6 +344,7 @@ const getProjectCommits = async (req, res, next) => {
 
 module.exports = {
   triggerIngestion,
+  validateRepo,
   getStatus,
   deleteProject,
   getUserProjects,

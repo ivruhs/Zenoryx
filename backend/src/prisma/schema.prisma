@@ -128,6 +128,9 @@ model Project {
   // to show "23 files processed". Also used to enforce the 25-file limit check.
   fileCount   Int           @default(0)
 
+  // Number of files successfully processed so far. Incremented by the worker.
+  processedCount Int           @default(0)
+
   // Cumulative byte size of all ingested files. Stored for display and future
   // billing/analytics. Updated by worker as it processes each file.
   totalSize   BigInt        @default(0)

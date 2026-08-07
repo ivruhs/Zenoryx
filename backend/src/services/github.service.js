@@ -13,6 +13,8 @@
 const { Octokit } = require("@octokit/rest");
 const config = require("../config");
 
+console.log("GitHub token loaded:", config.githubToken?.slice(0, 12));
+
 const octokit = new Octokit({
   auth: config.githubToken,
 });

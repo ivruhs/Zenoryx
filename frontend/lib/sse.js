@@ -74,7 +74,8 @@ export async function fetchSSE(url, options, handlers) {
           const parsed = JSON.parse(cleanedLine);
 
           if (parsed.error) {
-            throw new Error(parsed.error);
+            onError?.(parsed.error);
+            return;
           } else if (parsed.type === "sources") {
             onMetadata?.(parsed.files);
           } else if (parsed.token) {

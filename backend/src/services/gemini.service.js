@@ -51,7 +51,7 @@ ${codeContent.substring(0, 12000)}
 `;
 
       const response = await groq.chat.completions.create({
-        model: "meta-llama/llama-4-scout-17b-16e-instruct",
+        model: "llama-3.1-8b-instant",
         temperature: 0.1,
         messages: [
           {

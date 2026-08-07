@@ -9,6 +9,9 @@ const router = express.Router();
 // POST /projects -> triggers the ingestion pipeline
 router.post("/", protect, ingestionController.triggerIngestion);
 
+// POST /projects/validate -> validates a repo URL and returns the file list/count
+router.post("/validate", protect, ingestionController.validateRepo);
+
 // GET /projects/:id/status -> get the status of a project
 router.get("/:id/status", protect, ingestionController.getStatus);
 

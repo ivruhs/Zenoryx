@@ -44,7 +44,7 @@ async function processIngestion(job) {
   //1. Mark project as processing in the database
   const project = await prisma.project.update({
     where: { id: projectId },
-    data: { status: "PROCESSING" },
+    data: { status: "PROCESSING", processedCount: 0 },
   });
 
   try {
@@ -58,8 +58,9 @@ async function processIngestion(job) {
     );
 
     // Enforcing limit for V1
-    const filesToProcess = codeFiles.slice(0, 25);
+    const filesToProcess = codeFiles.slice(0, 15);
     let totalProcessedSize = 0;
+    let currentProcessedCount = 0;
 
     for (const file of filesToProcess) {
       logger.debug(`Downloading file ${file.path} from GitHub...`);
@@ -130,6 +131,13 @@ async function processIngestion(job) {
           continue; // Move to the next chunk safely
         }
       }
+      
+      // Update progress count in database
+      currentProcessedCount++;
+      await prisma.project.update({
+        where: { id: projectId },
+        data: { processedCount: currentProcessedCount },
+      });
     }
 
     // 7. process recent commits
@@ -172,6 +180,7 @@ async function processIngestion(job) {
       data: {
         status: "READY",
         fileCount: filesToProcess.length,
+        processedCount: filesToProcess.length,
         totalSize: totalProcessedSize,
       },
     });
