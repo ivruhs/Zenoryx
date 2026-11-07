@@ -1,48 +1,27 @@
-/*
-src/auth/crypto.js: The cryptographic engine. It signs raw database tokens with HMAC-SHA256 to create tamper-proof cookies, and verifies incoming cookies to ensure they were not forged.
-*/
-
-// signing and verifying session tokens using HMAC SHA256
-
+// HMAC-SHA256 signing for session cookies: cookie = "<rawToken>.<signature>".
+// The raw token is only trusted if the signature verifies (constant-time compare).
 const crypto = require("crypto");
 const config = require("../config");
 
-// signing a raw session token using HMAC SHA256.
-// o/p is rawToken.signature
+function sign(rawToken) {
+  return crypto.createHmac("sha256", config.cookieSecret).update(rawToken).digest("hex");
+}
 
 function signCookie(rawToken) {
-  const hmac = crypto.createHmac("sha256", config.cookieSecret);
-  hmac.update(rawToken);
-  const signature = hmac.digest("hex");
-  return `${rawToken}.${signature}`;
+  return `${rawToken}.${sign(rawToken)}`;
 }
 
-// verifying a signed session token using HMAC SHA256.
-// if valid, return the rawToken, else return null
+/** @returns {string|null} the raw token if the signature is valid */
 function verifyCookie(signedToken) {
-  if (!signedToken || typeof signedToken !== "string") {
-    return null;
-  }
-  const [rawToken, signature] = signedToken.split(".");
-  if (!rawToken || !signature) {
-    return null;
-  }
-  const hmac = crypto.createHmac("sha256", config.cookieSecret);
-  hmac.update(rawToken);
-  const expectedSignature = hmac.digest("hex");
-
-  const expectedBuffer = Buffer.from(expectedSignature, "hex");
-  const actualBuffer = Buffer.from(signature, "hex");
-  if (expectedBuffer.length !== actualBuffer.length) {
-    return null;
-  }
-  if (crypto.timingSafeEqual(expectedBuffer, actualBuffer)) {
-    return rawToken;
-  }
-  return null;
+  if (!signedToken || typeof signedToken !== "string") return null;
+  const dot = signedToken.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const rawToken = signedToken.slice(0, dot);
+  const signature = signedToken.slice(dot + 1);
+  if (!/^[a-f0-9]{64}$/.test(signature)) return null;
+  const expected = Buffer.from(sign(rawToken), "hex");
+  const actual = Buffer.from(signature, "hex");
+  return expected.length === actual.length && crypto.timingSafeEqual(expected, actual) ? rawToken : null;
 }
 
-module.exports = {
-  signCookie,
-  verifyCookie,
-};
+module.exports = { signCookie, verifyCookie };

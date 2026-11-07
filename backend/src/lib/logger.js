@@ -1,22 +1,22 @@
-// console.log on steroids, i.e. a structured logger that outputs JSON instead of plain text
-
+// Structured JSON logging (pretty-printed in development).
 const pino = require("pino");
 
+const isDev = (process.env.NODE_ENV || "development") === "development";
+const isTest = process.env.NODE_ENV === "test";
+
 const logger = pino({
-  level: process.env.NODE_ENV === "development" ? "debug" : "info",
+  level: process.env.LOG_LEVEL || (isTest ? "silent" : isDev ? "debug" : "info"),
+  redact: {
+    paths: ["req.headers.cookie", "req.headers.authorization", "*.password", "*.apiKey"],
+    remove: true,
+  },
   transport:
-    process.env.NODE_ENV === "development"
+    isDev && !isTest
       ? {
           target: "pino-pretty",
-          options: {
-            colorize: true,
-            translateTime: "SYS:standard",
-            ignore: "pid,hostname",
-          },
+          options: { colorize: true, translateTime: "SYS:HH:MM:ss", ignore: "pid,hostname" },
         }
       : undefined,
 });
 
 module.exports = logger;
-
-// this is a simple console.log file on steroids. basically we are using pino which is a structured logger. instead of plain txt, it logs pure JSON, which is much easier to parse and analyze. in development mode, we use pino-pretty to make the logs more human readable with colors and timestamps. in production, we just log plain JSON for better performance and easier integration with log management systems.

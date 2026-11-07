@@ -1,178 +1,201 @@
-// src/controllers/qa.controller.js
-
-/**
- * This controller is the brain of the QnA operaton. It evrifies the user actually owns the project (authorization). it asks gemini to convert the question into a 3072-dimensional vector. It then searches the database using the vector service.
- *
- * Custom logic: it loops through the results, uses a javaScript Set to extract exactly 7 unique file paths, formats them into a special Server-Sent Event (SSE), and shoots them to the fronten before the text starts generating.
- * Finally, it constructs a massive context prompt and streams the Groq response back to the user.
- */
-
+// Retrieval-augmented Q&A streamed over Server-Sent Events.
 //
+// Event protocol (one JSON object per `data:` line):
+//   {type:"sources", sources:[{n, filePath, startLine, endLine, symbol, summary, snippet, score}]}
+//   {type:"token", token}
+//   {type:"done", messageId, latencyMs, provider, model}
+//   {type:"error", error}
 const prisma = require("../prisma/client");
-const geminiService = require("../services/gemini.service");
-const vectorService = require("../services/vector.service");
-const groqService = require("../services/groq.service");
 const logger = require("../lib/logger");
+const llm = require("../services/llm.service");
+const embeddings = require("../services/embedding.service");
+const vector = require("../services/vector.service");
 
-const handleQuestion = async (req, res, next) => {
-  try {
-    const { projectId, question } = req.body;
+const MAX_QUESTION = 2000;
+// Context is sized per model route: large for Gemini, trimmed for Groq's 8K TPM.
+const HISTORY_TURNS = 6;
 
-    if (!projectId || !question) {
-      return res
-        .status(400)
-        .json({ error: "Project ID and question are required." });
-    }
-
-    // 1. Authorization: Ensure the user actually owns this project
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, userId: req.user.id },
-    });
-
-    if (!project) {
-      return res
-        .status(403)
-        .json({ error: "Unauthorized. You do not own this project." });
-    }
-
-    if (project.status !== "READY") {
-      return res
-        .status(400)
-        .json({ error: "Project is not fully ingested yet." });
-    }
-
-    // Prepare the HTTP response for Server-Sent Events (SSE)
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    // Handle client disconnects to save Groq API costs
-    req.on("close", () => {
-      logger.info("Client disconnected, aborting stream.");
-      res.end();
-    });
-
-    // 2. Generate Vector for the Question
-    const questionEmbedding = await geminiService.generateEmbedding(question);
-
-    // 3. Search the Database (Fetch top 30 chunks)
-    const chunks = await vectorService.similaritySearch(
-      projectId,
-      questionEmbedding,
-      30,
-    );
-
-    if (!chunks || chunks.length === 0) {
-      res.write(
-        `data: ${JSON.stringify({ error: "No relevant code found in this repository." })}\n\n`,
-      );
-      return res.end();
-    }
-
-    // 4. Extract the Top 7 Unique Files
-    const uniqueFiles = new Set();
-    const topChunks = []; // We will only feed the top ~30 chunks to the LLM to save context
-
-    for (const chunk of chunks) {
-      // Collect unique file paths until we hit 7
-      if (uniqueFiles.size < 7) {
-        uniqueFiles.add(chunk.filePath);
-      }
-      // Keep top 30 chunks for the actual prompt context
-      if (topChunks.length < 30) {
-        topChunks.push(chunk);
-      }
-    }
-
-    const topFilesArray = Array.from(uniqueFiles);
-
-    // Stream the 7 files to the frontend IMMEDIATELY as a custom event
-    res.write(
-      `data: ${JSON.stringify({ type: "sources", files: topFilesArray })}\n\n`,
-    );
-
-    // 5. Construct the Prompt Context
-    let contextText = "";
-    topChunks.forEach((chunk) => {
-      contextText += `\n--- FILE: ${chunk.filePath} ---\n`;
-      contextText += `SUMMARY: ${chunk.summary}\n`;
-      contextText += `CODE:\n${chunk.content}\n`;
-    });
-
-    const systemPrompt = `
-You are a Senior Staff Engineer.
-Answer ONLY using the provided context.
+const SYSTEM_PROMPT = `You are Zenoryx, a principal engineer who has read every line of this repository.
+Answer questions about the codebase using ONLY the numbered sources provided.
 
 Rules:
-0. If the user's question is a Yes/No question, your very first token must be 'Yes' or 'No' followed by a period.
-1. Start with a direct, definitive answer to the question.
-2. Use ### headings, bullet points, and numbered lists for clarity.
-3. Mention exact file names, function names, variables, formulas, and constants whenever they appear in the context.
-4. If the question asks about relationships or synergy, include a dedicated '### How they work together' section.
-5. Do not repeat the same information in different paragraphs.
-6. If the context is insufficient for a specific sub-part, say 'The provided snippets do not specify [X].' (be precise about what is missing).
-7. Exact Literal Extraction: If the user asks for links, URLs, APIs, query selectors, variables, or constants, scan the provided code for literal strings (e.g., fetch('...'), axios.get('...'), document.getElementById('...'), document.querySelector('...')). Output the exact string as written in the code (including template literal syntax like \${variable}). Do not summarize or generically describe them. Only say 'not specified' if you have genuinely scanned and found zero instances.
-8. Prefer concise answers. Expand with detailed explanation only when the user explicitly asks for it.
-9. Maximum answer length: 300 words unless the user explicitly asks for a detailed explanation.
+- Lead with a direct answer in 1–2 sentences, then the supporting detail.
+- Cite sources inline with their number in square brackets, e.g. "Sessions are HMAC-signed [2]." Cite every non-trivial claim. Never cite a number that was not provided.
+- Use exact file names, function names, constants and string literals from the code. Wrap identifiers in backticks.
+- Use short "###" headings, bullets, and fenced code blocks (with a language tag) when they aid clarity. Quote only the relevant lines.
+- If the sources don't contain the answer, say so plainly and state what is missing — do not guess.
+- Be concise: under 250 words unless the user asks for depth.`;
 
-=== CONTEXT ===
-${contextText}
-`;
-
-    // 6. Stream the Answer via Groq
-    await groqService.streamQnA(systemPrompt, question, res);
-  } catch (error) {
-    logger.error(error, "Q&A execution failed");
-    if (!res.headersSent) {
-      next(error);
-    } else {
-      res.write(
-        `data: ${JSON.stringify({ error: "An internal error occurred during generation." })}\n\n`,
-      );
-      res.end();
-    }
+function buildContext(chunks, budget = 22_000, fileRoles = new Map()) {
+  let used = 0;
+  const parts = [];
+  for (const [i, c] of chunks.entries()) {
+    const header = `[${i + 1}] ${c.filePath}${c.startLine ? ` (lines ${c.startLine}-${c.endLine})` : ""}${c.symbol ? ` — ${c.symbol}` : ""}`;
+    const role = fileRoles.get(c.filePath);
+    const remaining = budget - used - header.length - 80;
+    if (remaining < 400 && parts.length > 0) break;
+    const code = c.content.length > remaining ? `${c.content.slice(0, Math.max(400, remaining))}\n…` : c.content;
+    const block = `${header}${role ? `\nFile role: ${role}` : ""}\n\`\`\`${c.language || ""}\n${code}\n\`\`\``;
+    parts.push(block);
+    used += block.length;
   }
-};
+  return parts.join("\n\n");
+}
 
-module.exports = {
-  handleQuestion,
-};
+/** True for the deterministic "X in file, lines a–b." descriptions (not worth showing). */
+const isStructural = (s) => typeof s === "string" && /, lines \d+–\d+\.$/.test(s);
 
-/**
- * Architecture Overview:
- * 
-User Question
-      │
-      ▼
-QA Controller
-      │
-      ▼
-Authorization Check
-      │
-      ▼
-Gemini Embedding
-      │
-      ▼
-3072-D Vector
-      │
-      ▼
-Postgres + pgvector
-      │
-      ▼
-Top 30 Chunks
-      │
-      ▼
-7 Unique Files
-      │
-      ▼
-Build Context Prompt
-      │
-      ▼
-Groq 70B
-      │
-      ▼
-SSE Streaming
-      │
-      ▼
-Frontend
- */
+/** Chat APIs require alternating user/assistant turns that start with "user". */
+function normalizeHistory(history) {
+  const out = [];
+  for (const m of history) {
+    const content = m.content.slice(0, 4000);
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) last.content += `\n\n${content}`;
+    else out.push({ role: m.role, content });
+  }
+  while (out.length && out[0].role !== "user") out.shift();
+  if (out.length && out[out.length - 1].role === "user") out.pop();
+  return out;
+}
+
+async function ask(req, res) {
+  const { projectId } = req.body || {};
+  const question = typeof req.body?.question === "string" ? req.body.question.trim() : "";
+  if (!projectId || !question) {
+    return res.status(400).json({ error: "projectId and question are required." });
+  }
+  if (question.length > MAX_QUESTION) {
+    return res.status(400).json({ error: `Questions are limited to ${MAX_QUESTION} characters.` });
+  }
+
+  const project = await prisma.project.findFirst({
+    where: { id: String(projectId), userId: req.user.id },
+    select: { id: true, status: true, name: true, fileIndex: true },
+  });
+  if (!project) return res.status(404).json({ error: "Project not found." });
+  if (project.status !== "READY") return res.status(409).json({ error: "This repository is still being indexed." });
+
+  // ---- open the stream --------------------------------------------------
+  const started = Date.now();
+  res.status(200).set({
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.flushHeaders();
+
+  const controller = new AbortController();
+  // NB: listen on the *response*. `req` emits "close" as soon as the POST body is
+  // consumed, which previously ended streams before the first token.
+  res.on("close", () => {
+    if (!res.writableFinished) controller.abort();
+  });
+  const send = (event) => {
+    if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
+  const heartbeat = setInterval(() => !res.writableEnded && res.write(": ping\n\n"), 15_000);
+
+  try {
+    const history = await prisma.chatMessage.findMany({
+      where: { projectId: project.id, userId: req.user.id },
+      orderBy: { createdAt: "desc" },
+      take: HISTORY_TURNS,
+      select: { role: true, content: true },
+    });
+    history.reverse();
+
+    // Follow-ups like "and where is it called?" need the previous question to retrieve well.
+    const lastUserQ = [...history].reverse().find((m) => m.role === "user")?.content;
+    const retrievalQuery = lastUserQ && question.split(/\s+/).length < 12 ? `${lastUserQ}\n${question}` : question;
+
+    const qVector = await embeddings.embedQuery(retrievalQuery, { signal: controller.signal });
+    const chunks = await vector.search(project.id, qVector, retrievalQuery);
+    if (chunks.length === 0) {
+      send({ type: "error", error: "No indexed code was found for this repository." });
+      return;
+    }
+
+    const fileRoles = new Map(
+      (Array.isArray(project.fileIndex) ? project.fileIndex : []).map((f) => [f.path, f.summary]).filter(([, s]) => s),
+    );
+    const sources = chunks.map((c, i) => ({
+      n: i + 1,
+      filePath: c.filePath,
+      startLine: c.startLine,
+      endLine: c.endLine,
+      symbol: c.symbol,
+      language: c.language,
+      // Prefer the file's AI-written role; fall back to the chunk's own summary (legacy rows).
+      summary: fileRoles.get(c.filePath) || (isStructural(c.summary) ? null : c.summary),
+      snippet: c.content.length > 1200 ? `${c.content.slice(0, 1200)}\n…` : c.content,
+      score: Math.round(c.score * 1000) / 1000,
+    }));
+    send({ type: "sources", sources });
+
+    const priorTurns = normalizeHistory(history);
+    // Called once per model route with that route's prompt budget.
+    const build = (maxChars) => {
+      const historyBudget = Math.floor(maxChars * 0.2);
+      let turns = priorTurns;
+      while (turns.length && turns.reduce((n, m) => n + m.content.length, 0) > historyBudget) turns = turns.slice(2);
+      const contextBudget = maxChars - turns.reduce((n, m) => n + m.content.length, 0) - question.length - 600;
+      return [
+        ...turns,
+        {
+          role: "user",
+          content: `Repository: ${project.name}\n\n=== SOURCES ===\n${buildContext(chunks, contextBudget, fileRoles)}\n=== END SOURCES ===\n\nQuestion: ${question}`,
+        },
+      ];
+    };
+
+    let answer = "";
+    const { provider, model } = await llm.stream(
+      { system: SYSTEM_PROMPT, build, maxTokens: 1400, temperature: 0.2, signal: controller.signal },
+      (token) => {
+        answer += token;
+        send({ type: "token", token });
+      },
+      { purpose: "interactive", maxWaitMs: 20_000 },
+    );
+
+    const latencyMs = Date.now() - started;
+    // Persist the exchange only once it fully succeeded, keeping history well-formed.
+    const asked = new Date(started);
+    const [, saved] = await prisma.$transaction([
+      prisma.chatMessage.create({
+        data: { role: "user", content: question, projectId: project.id, userId: req.user.id, createdAt: asked },
+      }),
+      prisma.chatMessage.create({
+        data: {
+          role: "assistant",
+          content: answer || "_No answer was generated._",
+          sources: sources.map(({ snippet, ...s }) => ({ ...s, snippet: snippet.slice(0, 600) })),
+          latencyMs,
+          projectId: project.id,
+          userId: req.user.id,
+        },
+      }),
+    ]);
+    send({ type: "done", messageId: saved.id, latencyMs, provider, model });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      logger.debug("[qa] client disconnected; generation aborted");
+    } else {
+      logger.error({ err: err.message }, "[qa] generation failed");
+      const busy = err.status === 429 || /429|quota|rate/i.test(err.message || "");
+      send({
+        type: "error",
+        error: busy
+          ? "The free AI tier is busy right now. Please try again in a minute."
+          : "Something went wrong while generating the answer.",
+      });
+    }
+  } finally {
+    clearInterval(heartbeat);
+    res.end();
+  }
+}
+
+module.exports = { ask, SYSTEM_PROMPT, buildContext, normalizeHistory };

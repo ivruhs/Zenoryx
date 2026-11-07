@@ -1,65 +1,33 @@
-const express = require("express");
-const cors = require("cors");
-const cookieParser = require("cookie-parser");
+// Process entrypoint: HTTP server + in-process ingestion runner, with graceful shutdown.
 const config = require("./config");
 const logger = require("./lib/logger");
-const authRoutes = require("./routes/auth.routes");
-const projectRoutes = require("./routes/projects.routes");
-const qaRoutes = require("./routes/qa.routes");
-const { protect } = require("./middleware/auth.guard");
-const helmet = require("helmet");
+const prisma = require("./prisma/client");
+const { createApp } = require("./app");
+const { runner } = require("./jobs/runner");
 
-const app = express();
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-  }),
-);
-
-// basic middlewares
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(
-  cors({
-    origin: config.frontendUrl,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  }),
-);
-
-app.get("/health", (req, res) => {
-  return res
-    .status(200)
-    .json({ status: "ok", timestamp: new Date().toISOString() });
+const app = createApp();
+const server = app.listen(config.port, () => {
+  logger.info(`Zenoryx API listening on :${config.port} [${config.env}]`);
+  runner.recover().catch((err) => logger.error({ err: err.message }, "[runner] recovery failed"));
 });
+// SSE answers can be long-lived; don't let Node cut them off.
+server.requestTimeout = 0;
+server.headersTimeout = 65_000;
+server.keepAliveTimeout = 61_000;
 
-// global error handler middleware
+let shuttingDown = false;
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info(`${signal} received — shutting down gracefully`);
+  const force = setTimeout(() => process.exit(1), 15_000);
+  force.unref();
+  server.close();
+  await runner.stop(); // in-flight jobs are returned to PENDING and resume on next boot
+  await prisma.$disconnect().catch(() => {});
+  process.exit(0);
+}
 
-app.use((err, req, res, next) => {
-  logger.error(err, "Unhandled exception encountered");
-  return res.status(500).json({
-    error: "Internal Server Error",
-    message:
-      config.env === "development"
-        ? err.message
-        : "an unexpected error occurred",
-  });
-});
-
-app.use("/auth", authRoutes);
-
-app.get("/auth/me", protect, (req, res) => {
-  return res
-    .status(200)
-    .json({ message: "You are authenticated!", user: req.user });
-});
-
-app.use("/projects", projectRoutes);
-app.use("/qa", qaRoutes);
-
-app.listen(config.port, () => {
-  logger.info(
-    `zenoryx backend engine is live on port ${config.port} [${config.env}]`,
-  );
-});
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("unhandledRejection", (err) => logger.error({ err }, "unhandledRejection"));

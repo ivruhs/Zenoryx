@@ -1,0 +1,26 @@
+# One-click deploy of the API on Render's free plan (Blueprint).
+# The frontend deploys separately to Vercel with BACKEND_URL pointing here.
+services:
+  - type: web
+    name: zenoryx-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm ci && npm run build # prisma generate + migrate deploy
+    startCommand: npm start # API + in-process ingestion runner (no separate worker)
+    healthCheckPath: /health # liveness only — never wakes the database
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: COOKIE_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

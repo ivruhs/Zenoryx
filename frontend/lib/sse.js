@@ -1,92 +1,48 @@
-// lib/sse.js
+// POST + read a Server-Sent Events stream (EventSource can't POST or send bodies).
+// Calls onEvent(obj) for every `data:` JSON payload; resolves when the stream ends.
+export async function streamSSE(url, body, { onEvent, signal }) {
+  const res = await fetch(url, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "content-type": "application/json", accept: "text/event-stream" },
+    body: JSON.stringify(body),
+    signal,
+  });
 
-/**
- * See, our backend sends:
-data: {"type":"sources","files":["App.js","index.js"]}
-
-data: {"token":"The"}
-
-data: {"token":" answer"}
-
-data: {"token":" is"}
-
-data: [DONE]
- * 
- * So, our frontend needs to 
- * 1. read stream continuously
- * 2. extract json
- * 3. update ui in real-time
- * 
- * This file does exactly that. 
- * 
- * Handlers:
-onMetadata → source files
-onToken → new token arrived
-onDone → stream completed
-onError → something exploded
- * 
- *
- * 
- */
-
-export async function fetchSSE(url, options, handlers) {
-  const { onMetadata, onToken, onDone, onError } = handlers;
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "Failed to connect to stream.");
+  if (!res.ok || !res.body) {
+    let message = `Request failed (${res.status})`;
+    try {
+      message = (await res.json()).error || message;
+    } catch {
+      /* not JSON */
     }
-    // instead of await response.json(), we need to read the stream continuously
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n\n");
-
-      // Keep the last incomplete chunk in the buffer
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        const cleanedLine = line.replace(/^data:\s*/, "").trim();
-
-        if (!cleanedLine) continue;
-
-        if (cleanedLine === "[DONE]") {
-          onDone?.();
-          return;
-        }
-
-        try {
-          const parsed = JSON.parse(cleanedLine);
-
-          if (parsed.error) {
-            onError?.(parsed.error);
-            return;
-          } else if (parsed.type === "sources") {
-            onMetadata?.(parsed.files);
-          } else if (parsed.token) {
-            onToken?.(parsed.token);
-          }
-        } catch (e) {
-          console.warn("Failed to parse SSE line:", cleanedLine, e);
-        }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let sep;
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const frame = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const data = frame
+        .split("\n")
+        .filter((l) => l.startsWith("data:"))
+        .map((l) => l.slice(5).trimStart())
+        .join("\n");
+      if (!data) continue; // comments / heartbeats
+      try {
+        onEvent(JSON.parse(data));
+      } catch {
+        /* ignore malformed frame */
       }
     }
-  } catch (error) {
-    onError?.(error.message);
   }
 }

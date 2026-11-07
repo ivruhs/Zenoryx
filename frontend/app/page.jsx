@@ -1,161 +1,158 @@
-// app/page.js
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/stores/authStore";
 import Link from "next/link";
-import { Globe, Code2, Zap, Lock, Terminal } from "lucide-react";
+import { LandingNav } from "@/components/landing/LandingNav";
+import { HeroForm, CtaButtons } from "@/components/landing/HeroForm";
+import { XRayDemo } from "@/components/landing/XRayDemo";
+import { ChunkingCompare } from "@/components/landing/ChunkingCompare";
+import { PipelineTrack } from "@/components/landing/PipelineTrack";
+import { Architecture } from "@/components/landing/Architecture";
+import { SpecGrid } from "@/components/landing/SpecGrid";
+import { Logo } from "@/components/ui/Logo";
+
+function SectionHeader({ id, eyebrow, title, children }) {
+  return (
+    <div className="mb-10 grid gap-4 md:mb-14 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-end md:gap-12">
+      <div>
+        <p className="eyebrow mb-4" id={id ? `${id}-label` : undefined}>
+          {eyebrow}
+        </p>
+        <h2 className="text-3xl font-semibold leading-[1.05] tracking-[-0.035em] text-balance sm:text-[2.6rem]">{title}</h2>
+      </div>
+      {children && <p className="max-w-[52ch] text-[15px] leading-relaxed text-fg-muted md:justify-self-end">{children}</p>}
+    </div>
+  );
+}
+
+const FACTS = [
+  ["6", "Tree-sitter grammars"],
+  ["3072-d", "Gemini embeddings"],
+  ["~30s", "to index a small repo"],
+  ["[n]", "line-level citations"],
+];
 
 export default function LandingPage() {
-  const router = useRouter();
-  const { isAuthenticated, _hasHydrated } = useAuthStore();
-
-  // Redirect instantly if they are already logged in
-  useEffect(() => {
-    if (_hasHydrated && isAuthenticated) {
-      router.push("/dashboard");
-    }
-  }, [isAuthenticated, _hasHydrated, router]);
-
-  if (!_hasHydrated) return null;
-
   return (
-    <div className="min-h-screen bg-dark-bg text-[#e2e8f0] flex flex-col font-sans selection:bg-primary/30 selection:text-white relative overflow-hidden">
-      
-      {/* Decorative Floating Glowing Blobs */}
-      <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/10 blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-secondary/15 blur-[150px] pointer-events-none"></div>
+    <div className="relative min-h-dvh overflow-x-clip bg-ink-950">
+      <LandingNav />
 
-      {/* Cyber Grid Overlay */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none [background-size:40px_40px] opacity-25"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, #22263f 1px, transparent 1px), linear-gradient(to bottom, #22263f 1px, transparent 1px)",
-        }}
-      ></div>
+      <main>
+        {/* ---------------------------------------------------------- Hero */}
+        <section className="relative">
+          <div className="bg-grid fade-mask-b pointer-events-none absolute inset-x-0 -top-16 h-[680px]" aria-hidden="true" />
+          <div
+            className="pointer-events-none absolute left-1/2 top-0 h-px w-[min(900px,90vw)] -translate-x-1/2 bg-gradient-to-r from-transparent via-signal/40 to-transparent"
+            aria-hidden="true"
+          />
 
-      {/* Navigation */}
-      <nav className="relative z-10 flex justify-between items-center max-w-7xl w-full mx-auto px-6 py-6 border-b border-dark-border/40 backdrop-blur-md">
-        <div className="text-2xl font-black tracking-tighter flex items-center gap-2 select-none">
-          <span className="p-1.5 bg-primary/20 border border-primary/40 rounded-lg text-primary shadow-[2px_2px_0px_0px_#8b5cf6]">
-            <Terminal className="w-6 h-6" />
-          </span>
-          <span>Zenoryx<span className="text-primary">.</span></span>
-        </div>
-        <div className="flex gap-4">
-          <Link
-            href="/login"
-            className="text-sm font-semibold text-slate-400 hover:text-white px-4 py-2.5 transition-colors border border-transparent hover:border-dark-border rounded-xl"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/register"
-            className="btn-3d btn-3d-primary text-sm px-5 py-2.5"
-          >
-            Get Started
-          </Link>
-        </div>
-      </nav>
+          <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-14 sm:px-6 sm:pt-20 lg:pb-24">
+            <div className="animate-fade-up">
+              <p className="mb-6 inline-flex items-center gap-2.5 rounded-full border hairline-strong bg-ink-900/80 py-1 pl-1.5 pr-3 font-mono text-[11px] text-fg-muted">
+                <span className="rounded-full bg-signal px-2 py-0.5 font-medium text-signal-ink">RAG</span>
+                AST-aware retrieval for GitHub repositories
+              </p>
+              <h1 className="max-w-4xl text-[2.6rem] font-semibold leading-[0.98] tracking-[-0.045em] text-balance sm:text-6xl lg:text-[5.25rem]">
+                Read any codebase <em className="font-serif font-normal italic tracking-[-0.02em] text-signal">like you wrote it.</em>
+              </h1>
+              <p className="mt-8 max-w-[56ch] text-base leading-relaxed text-fg-muted sm:text-[17px]">
+                Zenoryx parses a repository into its real syntax tree, embeds every function and class, and answers your
+                questions in a live stream — with every claim cited down to the file and line it came from.
+              </p>
+              <HeroForm className="mt-8" />
+            </div>
 
-      {/* Hero Section */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-4 py-16 md:py-24">
-        
-        <div className="max-w-4xl mx-auto flex flex-col items-center">
-          
-          {/* Tag */}
-          <div className="inline-flex items-center gap-2 bg-[#8b5cf6]/10 text-primary border border-primary/30 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider mb-8 shadow-[2px_2px_0px_0px_rgba(139,92,246,0.15)]">
-            <Zap className="w-3.5 h-3.5 animate-pulse" />
-            <span>AI-Powered Code Assistant</span>
+            <div className="mt-14 animate-fade-up [animation-delay:150ms] sm:mt-16">
+              <XRayDemo />
+            </div>
+
+            <dl className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-xl border hairline bg-[var(--line)] sm:grid-cols-4">
+              {FACTS.map(([value, label]) => (
+                <div key={label} className="bg-ink-950 px-5 py-4">
+                  <dt className="sr-only">{label}</dt>
+                  <dd>
+                    <span className="block font-mono text-xl tracking-tight text-fg">{value}</span>
+                    <span className="mt-1 block text-xs text-fg-subtle">{label}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
+        </section>
 
-          {/* Title */}
-          <h1 className="text-4xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8 select-none">
-            Chat with your <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-[#c084fc] drop-shadow-[0_2px_10px_rgba(139,92,246,0.2)]">
-              GitHub Repositories.
-            </span>
-          </h1>
-
-          {/* Description */}
-          <p className="text-base md:text-lg text-slate-400 mb-12 max-w-2xl leading-relaxed">
-            Stop digging through folders to figure out how a codebase works.
-            Zenoryx leverages semantic AST parsing and vector embeddings to give you
-            instant architectural answers.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link
-              href="/register"
-              className="btn-3d btn-3d-primary text-base px-8 py-3.5 flex items-center gap-3 w-full sm:w-auto"
+        {/* ---------------------------------------------------- Why AST */}
+        <section id="chunking" className="scroll-mt-20 border-t hairline">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+            <SectionHeader
+              eyebrow="01 — Why it works"
+              title={
+                <>
+                  Chunk by syntax, <em className="font-serif font-normal italic">not by size.</em>
+                </>
+              }
             >
-              <Globe className="w-5 h-5" />
-              Connect a Repository
-              <span>&rarr;</span>
-            </Link>
-            <Link
-              href="/login"
-              className="btn-3d btn-3d-slate text-base px-8 py-3.5 w-full sm:w-auto text-center"
+              Most RAG pipelines slice files every N characters, cutting functions in half and orphaning signatures from their
+              bodies. Zenoryx walks the abstract syntax tree and keeps declarations whole — then sweeps up the top-level glue so
+              nothing is silently dropped.
+            </SectionHeader>
+            <ChunkingCompare />
+          </div>
+        </section>
+
+        {/* ---------------------------------------------------- Pipeline */}
+        <section id="how" className="scroll-mt-20 border-t hairline">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+            <SectionHeader eyebrow="02 — How it works" title="From URL to answers in five stages.">
+              Paste a public repository. A durable background job ranks the files that matter, parses, summarizes and embeds
+              them, then reads the recent commit history — all streamed to a live progress view.
+            </SectionHeader>
+            <PipelineTrack />
+          </div>
+        </section>
+
+        {/* ------------------------------------------------ Architecture */}
+        <section id="architecture" className="scroll-mt-20 border-t hairline">
+          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:py-28">
+            <SectionHeader
+              eyebrow="03 — Architecture"
+              title={
+                <>
+                  Small surface area. <em className="font-serif font-normal italic">No idle infrastructure.</em>
+                </>
+              }
             >
-              Sign In to Dashboard
-            </Link>
-          </div>
-        </div>
-
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto w-full mt-24 relative z-10">
-          
-          <div className="card-3d p-6 text-left flex flex-col justify-between">
-            <div>
-              <div className="w-11 h-11 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center mb-5 text-primary shadow-[2px_2px_0px_0px_rgba(139,92,246,0.2)]">
-                <Code2 className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Deep AST Chunking
-              </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                We parse the abstract syntax tree to keep complete classes and functions intact, ensuring the AI retrieves clean, context-rich snippets.
-              </p>
+              One Node process serves the API and runs ingestion; Postgres stores vectors, sessions and job state. The browser
+              only ever talks to its own origin, so session cookies stay first-party.
+            </SectionHeader>
+            <Architecture />
+            <div className="mt-16">
+              <SpecGrid />
             </div>
           </div>
+        </section>
 
-          <div className="card-3d p-6 text-left flex flex-col justify-between">
-            <div>
-              <div className="w-11 h-11 bg-secondary/10 border border-secondary/20 rounded-xl flex items-center justify-center mb-5 text-secondary shadow-[2px_2px_0px_0px_rgba(20,184,166,0.2)]">
-                <Zap className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Real-Time SSE
-              </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                No delays or pagination. Code insights and answers stream directly to your screen token-by-token over HTTP Server-Sent Events.
-              </p>
-            </div>
+        {/* ---------------------------------------------------- Final CTA */}
+        <section className="relative overflow-hidden border-t hairline">
+          <div className="bg-dots fade-mask-y pointer-events-none absolute inset-0" aria-hidden="true" />
+          <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-8 px-4 py-24 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:py-32">
+            <h2 className="max-w-3xl text-4xl font-semibold leading-[1] tracking-[-0.045em] text-balance sm:text-6xl">
+              Point it at a repo. <em className="font-serif font-normal italic text-signal">Ask it anything.</em>
+            </h2>
+            <CtaButtons />
           </div>
-
-          <div className="card-3d p-6 text-left flex flex-col justify-between">
-            <div>
-              <div className="w-11 h-11 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center mb-5 text-accent shadow-[2px_2px_0px_0px_rgba(245,158,11,0.2)]">
-                <Lock className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2">
-                Secure Sessions
-              </h3>
-              <p className="text-sm text-slate-400 leading-relaxed">
-                Sessions are backed by Postgres and signed on the server using HMAC-SHA256 HttpOnly cookies. No vulnerabilities, no exceptions.
-              </p>
-            </div>
-          </div>
-
-        </div>
+        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 border-t border-dark-border/40 py-8 text-center text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} Zenoryx. Crafted for codebase comprehension.
+      <footer className="border-t hairline">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-xs text-fg-subtle sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex items-center gap-3">
+            <Logo compact />
+            <span>© {new Date().getFullYear()} Zenoryx</span>
+          </div>
+          <div className="flex items-center gap-5">
+            <span className="font-mono">Built with Next.js, Express, pgvector</span>
+            <Link href="/login" className="hover:text-fg">
+              Sign in
+            </Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

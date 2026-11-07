@@ -1,30 +1,32 @@
-// src/routes/projects.routes.js
-
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const { protect } = require("../middleware/auth.guard");
-const ingestionController = require("../controllers/ingestion.controller");
+const projects = require("../controllers/projects.controller");
 
 const router = express.Router();
+router.use(protect);
 
-// POST /projects -> triggers the ingestion pipeline
-router.post("/", protect, ingestionController.triggerIngestion);
+// Validation/creation hit the GitHub API; keep a lid on it per user.
+const githubLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  keyGenerator: (req) => req.user.id,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many repository lookups this hour. Please try again later." },
+});
 
-// POST /projects/validate -> validates a repo URL and returns the file list/count
-router.post("/validate", protect, ingestionController.validateRepo);
-
-// GET /projects/:id/status -> get the status of a project
-router.get("/:id/status", protect, ingestionController.getStatus);
-
-// DELETE /projects/:id -> Deletes project, chunks, and queue jobs
-router.delete("/:id", protect, ingestionController.deleteProject);
-
-// GET /projects -> get all projects for the current user
-router.get("/", protect, ingestionController.getUserProjects);
-
-// GET /projects/:id -> Returns details for a single project
-router.get("/:id", protect, ingestionController.getProjectById);
-
-// GET /projects/:id/commits -> Returns the AI-summarized commit timeline
-router.get("/:id/commits", protect, ingestionController.getProjectCommits);
+router.get("/", projects.list);
+router.post("/", githubLimiter, projects.create);
+router.post("/validate", githubLimiter, projects.validate);
+router.get("/:id", projects.get);
+router.delete("/:id", projects.remove);
+router.get("/:id/status", projects.status);
+router.post("/:id/retry", projects.retry);
+router.get("/:id/commits", projects.commits);
+router.get("/:id/files", projects.files);
+router.get("/:id/chunks", projects.fileChunks);
+router.get("/:id/messages", projects.messages);
+router.delete("/:id/messages", projects.clearMessages);
 
 module.exports = router;

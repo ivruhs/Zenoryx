@@ -1,44 +1,27 @@
-/*
-
-src/auth/session.js: The database manager. It generates 48-byte secure random strings, saves them to the PostgreSQL Session table with a 7-day expiry, and deletes them during logout.
-
-*/
-
+// Server-side session store (Postgres). Revocation = deleting the row.
 const crypto = require("crypto");
 const prisma = require("../prisma/client");
 
-// create a new session in database for user
-async function createSession(userId, userAgent = "Unknown") {
-  // db function therefore it is async
-  const rawToken = crypto.randomBytes(48).toString("hex");
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7); // expires in 7 days
+async function createSession(userId, userAgent = "Unknown") {
+  const rawToken = crypto.randomBytes(48).toString("hex");
   await prisma.session.create({
     data: {
       sessionToken: rawToken,
-      userId: userId,
-      expiresAt: expiresAt,
-      userAgent: userAgent,
+      userId,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      userAgent: String(userAgent).slice(0, 300),
     },
   });
+  // Opportunistic cleanup of this user's expired sessions (no cron needed).
+  prisma.session.deleteMany({ where: { userId, expiresAt: { lt: new Date() } } }).catch(() => {});
   return rawToken;
 }
 
-// delete a session from database
+/** Idempotent: deleting an already-deleted session is not an error. */
 async function deleteSession(rawToken) {
-  try {
-    await prisma.session.delete({
-      where: { sessionToken: rawToken },
-    });
-  } catch (error) {
-    if (error.code === "P2025") {
-      throw error; // session not found
-    }
-  }
+  await prisma.session.deleteMany({ where: { sessionToken: rawToken } });
 }
 
-module.exports = {
-  createSession,
-  deleteSession,
-};
+module.exports = { createSession, deleteSession, SESSION_TTL_MS };

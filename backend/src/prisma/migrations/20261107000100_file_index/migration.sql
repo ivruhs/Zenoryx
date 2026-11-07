@@ -1,0 +1,3 @@
+ALTER TABLE "projects"
+  ADD COLUMN IF NOT EXISTS "fileIndex" JSONB,
+  ADD COLUMN IF NOT EXISTS "languages" JSONB;

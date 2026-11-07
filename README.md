@@ -1,408 +1,162 @@
 # Zenoryx
 
-> **AI-Powered GitHub Code Assistant** — Understand any codebase through semantic AST chunking and real-time LLM inference.
+**X-ray vision for codebases.** Point Zenoryx at any public GitHub repository and ask it questions in plain English. It parses the code into its real syntax tree, embeds every function and class, and streams back answers in which each claim is cited down to the exact file and line.
 
-🌐 **Live Application:** [https://zenoryx.vercel.app](https://zenoryx.vercel.app)
+![Zenoryx workspace: a streamed, cited answer with retrieved sources](docs/screenshots/workspace.png)
 
----
-
-## 📖 Table of Contents
-
-- [Overview & Philosophy](#-overview--philosophy)
-- [Core Features](#-core-features)
-- [System Architecture](#-system-architecture)
-- [Technology Stack](#-technology-stack)
-- [Prerequisites](#-prerequisites)
-- [Environment Variables](#-environment-variables)
-- [Local Development Setup](#-local-development-setup)
-- [Project Structure](#-project-structure)
-- [Deep Dive: The AST Ingestion Pipeline](#-deep-dive-the-ast-ingestion-pipeline)
-- [REST API Reference](#-rest-api-reference)
-- [Serverless Deployment Guide](#-serverless-deployment-guide)
-- [Troubleshooting & Common Errors](#-troubleshooting--common-errors)
-- [Future Roadmap](#-future-roadmap)
-- [Contributing](#-contributing)
-- [License](#-license)
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/landing.png" alt="Landing page"/></td>
+<td width="50%"><img src="docs/screenshots/ast-inspector.png" alt="AST inspector: how a file was chunked"/></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/scan-report.png" alt="Pre-flight scan report with ranked file selection"/></td>
+<td><img src="docs/screenshots/ingestion.png" alt="Live ingestion pipeline"/></td>
+</tr>
+</table>
 
 ---
 
-## ⚡ Overview & Philosophy
+## Highlights
 
-Zenoryx was built to solve a critical problem in software engineering: onboarding onto massive, undocumented codebases is painful. Traditional RAG (Retrieval-Augmented Generation) applications fail at code comprehension because they blindly split text by character count, frequently severing the structural logic of functions, classes, and callbacks.
+| | |
+|---|---|
+| **AST-aware chunking** | Tree-sitter grammars (JS, TS, TSX, Python, Java, C++) split files into whole functions, classes and methods. Imports and route wiring outside any declaration are collected into "module" chunks, so no code is dropped. Large classes are split into their methods, and small neighbouring declarations are merged. Unsupported languages fall back to overlapping line windows. |
+| **Hybrid retrieval** | pgvector cosine search over 3072-d Gemini embeddings, re-ranked with a lexical boost for exact identifiers (`useAuthStore`, `max_age`). Results are capped per file for diversity, and tests and docs are down-weighted unless the question asks about them. |
+| **Cited, streamed answers** | Answers stream over SSE with `[n]` citations. Clicking one shows the retrieved chunk, its line range, and a GitHub link pinned to the exact indexed commit. Conversation history is persisted, so follow-up questions work. |
+| **Quota-aware model pool** | Seven free-tier models (Gemini Flash-Lite variants and Groq `gpt-oss`/`qwen`) sit behind one gateway, each with its own RPM/TPM token bucket. Calls wait for budget instead of hitting 429s, and models whose daily quota is spent are parked. Interactive Q&A prefers Gemini; background ingestion prefers Groq. Prompts are sized per model, and streams only fail over before the first token. |
+| **Durable job queue in Postgres** | Postgres is the queue, so there's no Redis to keep alive. Jobs are claimed with an atomic `UPDATE … WHERE status='PENDING'`. Transient failures retry with exponential backoff. On shutdown, in-flight jobs go back to the queue, and on boot interrupted work is recovered. A redeploy mid-ingestion loses nothing. |
+| **Secure sessions** | Server-side sessions in an HttpOnly, HMAC-SHA256-signed cookie, verified in constant time and revocable instantly. Passwords use bcrypt (cost 12), and login timing is identical for unknown emails. The browser only talks to the Next.js origin (`/api` is proxied), so cookies stay first-party, which matters because Safari blocks third-party cookies. |
+| **Free-tier by design** | File contents come from GitHub's raw CDN, which doesn't count against the API rate limit. GitHub works without a token and falls back to anonymous access if a token expires. Embeddings are batched and paced to the free quota. The health check never touches the database, so Neon can scale to zero. Database connections use node-postgres with a cold-start-tolerant timeout. |
 
-Zenoryx introduces **Semantic Chunking**. By leveraging Tree-sitter to construct an Abstract Syntax Tree (AST) of the target repository, Zenoryx slices source files based on their actual programming constructs. These high-fidelity chunks are embedded via Google's Gemini models, stored natively in a NeonDB PostgreSQL database using the `pgvector` extension, and queried using cosine similarity.
+## Architecture
 
-The retrieved context is fed into Groq's Llama-3-70B inference engine, establishing an active Server-Sent Events (SSE) connection to stream architectural answers back to the Next.js client with near-zero latency.
-
----
-
-## 🚀 Core Features
-
-### 🧠 Semantic AST Code Chunking
-
-Instead of native text splitters, Zenoryx uses native C++ Tree-sitter bindings. It intelligently extracts intact `function_declaration`, `class_declaration`, and `arrow_function` nodes across JavaScript, TypeScript, Python, C++, and Java. If an unsupported language or malformed encoded file is encountered, it gracefully degrades to a defensive, hard-capped fallback character splitter.
-
-### 🚄 Resilient Background Queues
-
-Heavy repository ingestion is decoupled from the main API thread using BullMQ and Upstash Redis. The worker pipeline features:
-
-- **Base64 Decoding:** Safely decodes Octokit payloads to prevent parser crashes.
-- **API Timeouts:** Strict 10-second `Promise.race` timeouts on external LLM calls to prevent stall loops.
-- **Idempotency:** Raw SQL checks to prevent duplicate chunk processing during retry loops.
-
-### 🌊 Real-Time Inference Streaming (SSE)
-
-AI responses are not batched. They stream to the Next.js client character-by-character over HTTP Server-Sent Events. The UI dynamically renders the markdown stream, applying `remark-gfm` formatting and VS Code Dark syntax highlighting to code blocks in real-time.
-
-### 🛡️ Fail-Safe UX & "Last Resort Cleanup"
-
-The cloud is unpredictable (e.g., OOM Kills on free tiers). Zenoryx implements a 5-minute timeout detector on the frontend. If a background worker crashes silently, the UI catches the hanging state and provides users an **"Escape Hatch"** to forcefully terminate the job and wipe the stuck project from the database.
-
-### 🔒 Stateless Authentication
-
-User sessions are protected using `HttpOnly`, `Secure`, `SameSite=Strict` cookies and bcrypt password hashing. Zenoryx completely avoids local storage JWT vulnerabilities.
-
----
-
-## 🏗 System Architecture
-
-The application is designed around an asynchronous, event-driven architecture.
-
-### The Ingestion Lifecycle
-
-1. **Request:** The user submits a GitHub `owner/repo` string.
-2. **Queueing:** The Express API creates a `Project` in NeonDB (`status: PENDING`) and pushes a job to Upstash Redis.
-3. **Execution:** The BullMQ worker picks up the job, updates status to `PROCESSING`, and uses `@octokit/rest` to recursively fetch the Git Tree.
-4. **Parsing & Chunking:** Code files are downloaded, decoded, and parsed by Tree-sitter into discrete, semantic units of meaning.
-5. **Embedding:** Each chunk is passed to Gemini 1.5 Flash to generate a 3-bullet summary and a 3072-dimensional vector.
-6. **Storage:** Raw SQL queries inject the text and vector directly into the `code_chunks` table.
-7. **Completion:** The worker fetches recent commit history, generates AI diff summaries, and marks the project as `READY`.
-
-### The Query Lifecycle
-
-1. **Prompt:** User asks a codebase question via the Chat UI.
-2. **Vectorization:** The backend embeds the user's question using Gemini.
-3. **Similarity Search:** A raw SQL query computes the cosine distance (`<=>`) between the prompt vector and the database vectors, retrieving the top 5 most relevant code chunks.
-4. **LLM Synthesis:** The retrieved code chunks are injected into a strict system prompt and sent to Groq (Llama 3).
-5. **Streaming:** Groq's response is piped back to the client via `res.write()` SSE chunks.
-
----
-
-## 💻 Technology Stack
-
-| Category           | Technology                    | Purpose                                      |
-| ------------------ | ----------------------------- | -------------------------------------------- |
-| Frontend Framework | Next.js 15 (App Router)       | Client UI, routing, and hydration.           |
-| Styling & UI       | Tailwind CSS, Lucide React    | Utility-first styling and iconography.       |
-| State Management   | Zustand, React Query          | Client-side stores and server-state caching. |
-| Backend Framework  | Express.js 5                  | REST API routing and SSE streaming.          |
-| Database & ORM     | NeonDB, Prisma                | Serverless PostgreSQL with pgvector.         |
-| Queue & Caching    | BullMQ, Upstash Redis         | Reliable background job processing.          |
-| AI (Inference)     | Groq SDK (Llama-3-70b)        | Ultra-fast text generation for Q&A.          |
-| AI (Embedding)     | Google Generative AI (Gemini) | 3072-dimensional vector generation.          |
-| Code Parsing       | Tree-sitter, Octokit          | AST generation and GitHub API interfacing.   |
-
----
-
-## 📋 Prerequisites
-
-Before setting up Zenoryx locally, ensure you have the following installed and configured:
-
-- **Node.js:** v18.x or v20.x (LTS recommended)
-- **npm:** v9.x or higher
-- **Git:** For cloning and version control.
-- **NeonDB Account:** For serverless PostgreSQL.
-- **Upstash Account:** For serverless Redis.
-- **Groq API Key:** For Llama 3 inference.
-- **Google AI Studio Key:** For Gemini embeddings.
-- **GitHub PAT:** A Personal Access Token to bypass strict API rate limits.
-
----
-
-## 🔐 Environment Variables
-
-You must configure two separate environment files to run the monorepo.
-
-### Backend (`backend/.env`)
-
-| Variable         | Description                        | Example                                                               |
-| ---------------- | ---------------------------------- | --------------------------------------------------------------------- |
-| `DATABASE_URL`   | NeonDB pooled connection string.   | `postgresql://user:pass@ep-rest.neon.tech/zenoryx?sslmode=require`    |
-| `REDIS_URL`      | Upstash ioredis connection string. | `rediss://default:pass@uw1-rest.upstash.io:6379`                      |
-| `GROQ_API_KEY`   | Your Groq Cloud API Key.           | `gsk_12345abcdef...`                                                  |
-| `GEMINI_API_KEY` | Google Generative AI Key.          | `AIzaSyB...`                                                          |
-| `GITHUB_TOKEN`   | GitHub PAT for Octokit.            | `ghp_abc123...`                                                       |
-| `COOKIE_SECRET`  | Secure string for signing cookies. | `your_random_secure_string_here`                                      |
-| `FRONTEND_URL`   | CORS origin allowance.             | `http://localhost:3000` (Local) / `https://zenoryx.vercel.app` (Prod) |
-| `BACKEND_PORT`   | Port for the Express server.       | `8000`                                                                |
-
-### Frontend (`frontend/.env.local`)
-
-| Variable              | Description                   | Example                                                                         |
-| --------------------- | ----------------------------- | ------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL` | Base URL for the Express API. | `http://localhost:8000/api` (Local) / `https://zenoryx.onrender.com/api` (Prod) |
-
----
-
-## 🛠 Local Development Setup
-
-Zenoryx is structured as a Monolithic Repository (Monorepo). This enables simultaneous execution of both the frontend and backend using a single command.
-
-### 1. Clone & Initialize
-
-```bash
-git clone https://github.com/yourusername/zenoryx.git
-cd zenoryx
-
-# Initialize root package.json for concurrent running
-npm init -y
-npm install concurrently
+```
+Browser ──► Next.js 15 (App Router) ──/api proxy──► Express 5 API ──► Postgres + pgvector (Neon)
+                                                       │   ▲            ├─ users, sessions
+                                                       │   │            ├─ projects  ← also the job queue
+                                                       ▼   │            ├─ code_chunks (vector(3072))
+                                                 Ingestion runner       └─ commits, chat_messages
+                                                 (in-process, durable)
+                                                       │
+                     ┌─────────────────────────────────┼──────────────────────────────┐
+                     ▼                                 ▼                              ▼
+          GitHub (REST + raw CDN)        Gemini (embeddings + chat pool)      Groq (chat pool)
 ```
 
-### 2. Install Sub-Project Dependencies
+### Ingestion pipeline
+
+1. **Fetch.** Resolve the default branch and pin its commit SHA. Fetch the full tree in one call and rank files by architectural relevance (entry points and core directories score up; tests, configs and vendored code score down). The top N files are indexed.
+2. **Parse.** Download files from the raw CDN in parallel and split them into AST chunks with line ranges.
+3. **Summarize.** One LLM call per *group* of files writes a 1–2 sentence role summary per file.
+4. **Embed.** Chunks are embedded in batches (with their file's role summary) into 3072-d vectors and bulk-inserted into pgvector.
+5. **History.** Recent commits get plain-English summaries of their diffs.
+
+### Q&A
+
+Embed the question (merged with the previous question for short follow-ups) → hybrid search → numbered sources streamed to the client → grounded answer streamed token by token → the exchange is persisted with its sources.
+
+## Tech stack
+
+**Web:** Next.js 15, React 19, Tailwind CSS 4, TanStack Query, react-hook-form + zod, react-markdown, Prism. Fonts: Geist, Geist Mono, Instrument Serif.
+**API:** Node 20+, Express 5, Prisma 6 (pg driver adapter), pgvector, Tree-sitter, Octokit, pino, helmet, express-rate-limit.
+**AI:** Gemini `gemini-embedding-001` + Flash-Lite pool, Groq `gpt-oss-120b` / `gpt-oss-20b` / `qwen3.8-27b`. All on free tiers.
+
+## Getting started
+
+Prerequisites: Node 20.10+, plus free accounts for [Neon](https://neon.tech) (Postgres), [Google AI Studio](https://aistudio.google.com) (Gemini key) and [Groq](https://console.groq.com). A GitHub token is optional.
 
 ```bash
-# Install Next.js dependencies
+# 1. API
+cd backend
+cp env.example .env         # fill in the values (see below)
+npm install
+npm run migrate             # applies Prisma migrations (enables pgvector)
+npm run doctor              # checks DB, every model in the pool, embeddings, GitHub
+npm run dev                 # http://localhost:8000
+
+# 2. Web (second terminal)
 cd frontend
+cp .env.example .env        # BACKEND_URL=http://localhost:8000
 npm install
-
-# Install Express and Worker dependencies
-cd ../backend
-npm install
+npm run dev                 # http://localhost:3000
 ```
 
-### 3. Database Initialization
+### Environment variables (`backend/.env`)
 
-Ensure your NeonDB project is active. In the Neon SQL Editor, execute:
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | yes | Postgres with pgvector. Neon: run `CREATE EXTENSION IF NOT EXISTS vector;` once. |
+| `COOKIE_SECRET` | yes | 32+ random bytes: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `GEMINI_API_KEY` | yes | Embeddings + primary chat pool. |
+| `GROQ_API_KEY` | recommended | Chat pool for ingestion and failover. |
+| `GITHUB_TOKEN` | no | Raises GitHub's limit from 60 to 5,000 req/h. No scopes needed. |
+| `PORT` | no | Default `8000`. |
+| `FRONTEND_URL` | no | CORS allow-list. Only needed if a browser calls the API cross-origin. |
+| `GEMINI_CHAT_MODELS`, `GROQ_CHAT_MODELS` | no | Comma-separated model pools, in preference order. |
+| `MAX_FILES`, `MAX_CHUNKS`, `QA_PER_HOUR` | no | Per-repo budget (default 36 files / 180 chunks) and per-user question limit. |
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
+> The committed template is `backend/env.example`. Real `.env*` files are gitignored.
 
-Navigate back to your terminal to push the Prisma schema and generate the client:
+## Testing
 
 ```bash
-# Still in the /backend directory
-npx prisma db push
-npx prisma generate
+cd backend
+npm run test:unit   # pure logic: chunker, URL parsing, ranking, crypto, retrieval, limiter
+npm test            # + HTTP integration tests against your database (test users are cleaned up)
+npm run test:e2e    # + full flow: validate → ingest a real repo → stream an answer → delete
+
+cd ../frontend
+npm run lint && npm run build
 ```
 
-### 4. Boot the Monorepo
+CI (`.github/workflows/ci.yml`) runs the unit tests, lint and production build on every push.
 
-Add the following script to your root `zenoryx/package.json`:
+## Deployment (free)
 
-```json
-"scripts": {
-  "dev": "concurrently \"cd frontend && npm run dev\" \"cd backend && npm run dev\""
-}
+- **API → Render** (free web service): use `render.yaml` as a Blueprint, or set build `npm ci && npm run build` and start `npm start` with root `backend`. The ingestion runner lives in the same process, so no separate worker service is needed.
+- **Web → Vercel**: root `frontend`, env `BACKEND_URL=https://<your-api>.onrender.com`.
+- **DB → Neon** free tier.
+
+> Upgrading an older deployment: the API no longer uses Redis/BullMQ. Change the Render start command to `npm start` (it previously launched a separate worker), add `npm run build` so migrations run, and set `BACKEND_URL` on Vercel.
+
+## API reference
+
+All routes are served under `/api` (and at the root for older clients).
+
+| Method | Route | Description |
+|---|---|---|
+| `POST` | `/auth/register` · `/auth/login` · `/auth/logout` | Session lifecycle. |
+| `GET` | `/auth/me` · `/auth/session` | Current user (401 vs. soft `{ user: null }`). |
+| `POST` | `/projects/validate` | Pre-flight scan: metadata, language mix, ranked file selection. |
+| `POST` | `/projects` | Create and enqueue (returns the existing project for duplicates). |
+| `GET` | `/projects` · `/projects/:id` · `/projects/:id/status` | Listing, details, live progress. |
+| `POST` | `/projects/:id/retry` | Retry a failed ingestion. |
+| `GET` | `/projects/:id/files` · `/projects/:id/chunks?path=` | File explorer and per-file AST chunks. |
+| `GET` | `/projects/:id/commits` | AI-summarized commit timeline. |
+| `GET` / `DELETE` | `/projects/:id/messages` | Conversation history. |
+| `DELETE` | `/projects/:id` | Cancel any running job and delete vectors, commits and chat. |
+| `POST` | `/qa` | SSE stream: `sources` → `token`* → `done` \| `error`. |
+
+## Project structure
+
+```
+backend/
+  src/
+    app.js · server.js          Express app (side-effect free) and process entrypoint
+    jobs/runner.js · ingest.js  Durable Postgres-backed queue and the ingestion pipeline
+    services/                   github · llm (quota-aware pool) · embedding · vector (hybrid search)
+    lib/                        chunker (Tree-sitter) · fileUtils (ranking) · githubUrl · logger
+    controllers/ routes/ middleware/ auth/ prisma/
+  test/                         unit + integration + e2e (node:test)
+  scripts/doctor.js             connectivity and quota check for every dependency
+frontend/
+  app/                          (auth) and (app) route groups, landing, 404, error boundary
+  components/
+    landing/ auth/ dashboard/ ingest/ workspace/ app/ ui/
+  lib/ hooks/                   API client, SSE reader, formatting, pipeline metadata
 ```
 
-Return to the root `zenoryx` folder and start the application:
+## License
 
-```bash
-npm run dev
-```
-
-The Next.js frontend will be available at `http://localhost:3000` and the Express backend/worker will boot on `http://localhost:8000`.
-
----
-
-## 📂 Project Structure
-
-```
-zenoryx/
-├── package.json               # Root monorepo configuration
-├── frontend/                  # Next.js 15 Application
-│   ├── app/                   # App Router pages (Dashboard, Projects)
-│   ├── components/            # UI Components (AuthGuard, Navbar)
-│   ├── hooks/                 # Custom React Query and SSE Hooks
-│   ├── stores/                # Zustand State Management (chatStore)
-│   └── lib/                   # Axios interceptors and utilities
-└── backend/                   # Express API & BullMQ Worker
-    ├── src/
-    │   ├── controllers/       # Route logic (Project, Auth, QA)
-    │   ├── lib/               # Core utilities (Chunker, Logger, Tree-sitter)
-    │   ├── prisma/            # Schema and migrations
-    │   ├── queues/            # BullMQ worker initialization and job logic
-    │   ├── routes/            # Express route definitions
-    │   └── services/          # External integrations (Octokit, Groq, Gemini)
-    ├── package.json           # Backend dependencies and "concurrently" scripts
-    └── server.js              # Express application entry point
-```
-
----
-
-## 🔍 Deep Dive: The AST Ingestion Pipeline
-
-The most complex and critical component of Zenoryx is the `chunker.js` file and the worker loop.
-
-### Tree-Sitter Integration
-
-Text splitting is fundamentally flawed for code. We utilize `tree-sitter` along with specific language grammars (`tree-sitter-javascript`, `tree-sitter-python`, etc.). The chunker recursively traverses the AST nodes.
-
-- **Inclusion Logic:** It captures nodes of type `function_declaration`, `method_definition`, and `class_declaration`.
-- **Exclusion Logic (Callbacks):** If it detects an `arrow_function`, it checks the parent node. If the parent is a `call_expression` (e.g., an inline `.map()` or `.then()` callback), it does **not** chunk it in isolation, preventing the loss of surrounding semantic context.
-
-### Defensive Fallbacks
-
-If the target language lacks an installed grammar, or if the file contains malformed syntax/un-decoded Base64, the chunker throws an error. We catch this error and route the file to `fallbackChunkCode()`, which splits by character count (1500 chars with a 200 char overlap).
-
-**The Infinite Loop Protection:** To prevent the fallback chunker from slicing a massive 3MB bundled file into 5,000 chunks (which would subsequently crash the Gemini API and cause a BullMQ stall loop), we instituted a strict Hard Limit:
-
-```js
-const MAX_CHUNKS = 50;
-if (chunks.length >= MAX_CHUNKS) {
-  logger.warn(`Truncating fallback to ${MAX_CHUNKS} chunks to prevent infinite API loops.`);
-  break;
-}
-```
-
----
-
-## 📡 REST API Reference
-
-### Authentication
-
-| Method | Endpoint             | Description                                  |
-| ------ | -------------------- | -------------------------------------------- |
-| `POST` | `/api/auth/register` | Creates a new user and sets HttpOnly cookie. |
-| `POST` | `/api/auth/login`    | Authenticates user and sets HttpOnly cookie. |
-| `POST` | `/api/auth/logout`   | Clears the authentication cookie.            |
-| `GET`  | `/api/auth/me`       | Returns current authenticated user data.     |
-
-### Projects
-
-**`POST /api/projects`**
-
-- **Payload:** `{ repoUrl: "https://github.com/owner/repo" }`
-- **Action:** Creates database record and pushes job to BullMQ.
-
-**`GET /api/projects`**
-
-- **Action:** Retrieves all projects owned by the authenticated user.
-
-**`GET /api/projects/:id`**
-
-- **Action:** Retrieves specific project metadata (status, file count).
-
-**`DELETE /api/projects/:id`**
-
-- **Action:** The "Escape Hatch". Removes pending jobs from BullMQ, wipes vectors via raw SQL (`DELETE FROM code_chunks`), and deletes the project.
-
-### Q&A Streaming
-
-**`POST /api/qa/stream`**
-
-- **Payload:** `{ projectId: "uuid", question: "How does auth work?" }`
-- **Action:** Retrieves context via cosine similarity, opens `text/event-stream`, and streams Llama 3 markdown response.
-
----
-
-## ☁️ Serverless Deployment Guide
-
-Deploying background workers typically requires expensive dedicated servers. Zenoryx employs a specific architectural strategy to deploy 100% for free across Vercel and Render.
-
-### 1. Database (NeonDB) & Cache (Upstash)
-
-Both services offer permanent free tiers. Ensure your NeonDB project is set to wake automatically. Copy your Upstash Redis connection string and verify it begins with `rediss://` for TLS support.
-
-### 2. Backend API & Worker (Render)
-
-Render charges for dedicated "Background Worker" dynos. To bypass this, we run both the Express API and the BullMQ worker inside a single Web Service.
-
-1. Link your GitHub repository to a new Render Web Service.
-2. **Root Directory:** Set this to `backend`.
-3. **Build Command:** `npm install`
-4. **Start Command:** `npm start`
-
-**The Hack:** Your `backend/package.json` must contain:
-
-```json
-"scripts": {
-  "start": "concurrently \"node src/server.js\" \"node src/queues/worker.js\""
-}
-```
-
-This command spins up both processes simultaneously within the free container.
-
-5. Input all environment variables. Set `NODE_ENV` to `production`.
-
-> **Note:** Render free instances spin down after 15 minutes of inactivity. The first API request after a dormant period may take up to 45 seconds to resolve while the container boots.
-
-### 3. Frontend UI (Vercel)
-
-Vercel is optimized for Next.js and provides instant edge deployments.
-
-1. Link the exact same GitHub repository to a new Vercel Project.
-2. **Root Directory:** Edit the configuration and set this to `frontend`.
-3. **Environment Variables:** Add `NEXT_PUBLIC_API_URL` pointing to your deployed Render URL (e.g., `https://zenoryx-api.onrender.com/api`).
-4. Click **Deploy**.
-
-### 4. The CORS Handshake
-
-Once Vercel finishes deploying, copy the production URL (`https://zenoryx.vercel.app`). Return to the Render dashboard, update the `FRONTEND_URL` environment variable with this domain, and manually restart the Web Service to apply the correct CORS policy.
-
----
-
-## 🐛 Troubleshooting & Common Errors
-
-### 1. "PROCESSING" Status Infinite Loading (Zombie Jobs)
-
-**Symptoms:** The UI is stuck on the "Analyzing Codebase" screen indefinitely.
-
-**Cause:** The background worker crashed (likely due to a Memory Limit OOM Kill on Render's 512MB tier) before it could execute the `catch` block to update the database to `FAILED`.
-
-**Resolution:** Use the UI's built-in 5-minute "Escape Hatch" to cancel the process. Alternatively, manually clear it in NeonDB:
-
-```sql
-UPDATE "Project" SET status = 'FAILED' WHERE status = 'PROCESSING';
-```
-
-### 2. Tree-sitter "Invalid Argument" Crash
-
-**Symptoms:** Worker logs show `Error: Invalid argument at Parser.parse`.
-
-**Cause:** Octokit returned the GitHub file as a Base64 encoded JSON object, not a plain text string.
-
-**Resolution:** Ensure `github.service.js` contains the decoding logic:
-
-```js
-if (typeof data === "object" && data.encoding === "base64") {
-  return Buffer.from(data.content, "base64").toString("utf8");
-}
-```
-
-### 3. API Rate Limit Hangs
-
-**Symptoms:** Ingestion halts midway through a repository without throwing an error.
-
-**Cause:** Gemini or Groq APIs silently dropped the connection due to excessive concurrent requests.
-
-**Resolution:** Ensure your worker loop implements `withTimeout` bounds (10,000ms max) and a `setTimeout` breather (500ms) between chunk processing iterations.
-
----
-
-## 🗺 Future Roadmap
-
-- [ ] **Recursive Batched Ingestion:** The current V1 enforces a 25-file limit to respect cloud memory constraints. Future versions will implement recursive, paginated queueing to ingest monolithic repositories safely.
-- [ ] **OAuth Private Repositories:** Integrate standard GitHub OAuth flows to request short-lived access tokens, enabling users to index private, organizational repositories securely.
-- [ ] **Expanded AST Grammars:** Incorporate Rust (`tree-sitter-rust`), Go (`tree-sitter-go`), and Ruby grammars to expand support for backend engineering teams.
-- [ ] **Conversational Memory Injection:** Upgrade the Groq prompt construction to retrieve and inject the past 3 query/response pairs, enabling multi-turn, context-aware conversations.
-
----
-
-## 🤝 Contributing
-
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+MIT
