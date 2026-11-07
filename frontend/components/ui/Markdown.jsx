@@ -42,10 +42,8 @@ function MarkdownImpl({ children, onCite, activeCite, sourceCount = 99, classNam
                   onClick={() => onCite?.(n)}
                   onMouseEnter={() => onCite?.(n, { hover: true })}
                   className={cn(
-                    "mx-0.5 inline-flex h-[1.35em] min-w-[1.35em] -translate-y-px items-center justify-center rounded-[5px] border px-1 align-middle font-mono text-[0.68em] font-medium transition-colors",
-                    activeCite === n
-                      ? "border-signal bg-signal text-signal-ink"
-                      : "border-[var(--line-strong)] bg-ink-800 text-fg-muted hover:border-signal/60 hover:text-signal",
+                    "mx-0.5 inline-flex h-[1.45em] min-w-[1.45em] -translate-y-[0.15em] items-center justify-center rounded-full border-[1.5px] border-ink px-1 align-middle font-mono text-[0.66em] font-bold transition-transform duration-200 hover:-rotate-12 hover:scale-110",
+                    activeCite === n ? "bg-blue text-paper-2" : "bg-pink text-ink",
                   )}
                   aria-label={`Source ${n}`}
                 >

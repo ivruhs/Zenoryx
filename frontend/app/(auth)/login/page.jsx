@@ -55,8 +55,10 @@ function LoginForm() {
     <>
       <SignedInNotice href={destination} />
       <RepoNotice repo={params.get("repo")} />
-      <h1 className="text-[28px] font-semibold tracking-[-0.035em]">Welcome back</h1>
-      <p className="mt-2 text-[15px] text-fg-muted">Sign in to your repositories and conversations.</p>
+      <h1 className="font-display text-4xl font-extrabold tracking-[-0.03em]">
+        Welcome <span className="marker">back.</span>
+      </h1>
+      <p className="mt-3 text-[15px] text-ink-2">Your repositories and conversations are right where you left them.</p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-5" noValidate>
         <FormAlert message={serverError} />
@@ -91,16 +93,16 @@ function LoginForm() {
           />
           <FieldError id="password-error" message={errors.password?.message} />
         </div>
-        <button type="submit" className="btn btn-primary btn-lg w-full" disabled={login.isPending}>
+        <button type="submit" className="btn btn-pink btn-lg w-full" disabled={login.isPending}>
           {login.isPending ? <Spinner /> : null}
           {login.isPending ? "Signing in…" : "Sign in"}
           {!login.isPending && <ArrowRight className="size-4" />}
         </button>
       </form>
 
-      <p className="mt-8 border-t hairline pt-6 text-sm text-fg-subtle">
+      <p className="mt-8 border-t-[1.5px] border-dashed border-ink/30 pt-6 text-sm text-ink-3">
         New to Zenoryx?{" "}
-        <Link href={`/register${carryParams(params)}`} className="font-medium text-fg underline decoration-white/20 underline-offset-4 hover:decoration-signal">
+        <Link href={`/register${carryParams(params)}`} className="font-display font-bold text-ink underline decoration-pink decoration-2 underline-offset-4 hover:bg-yellow">
           Create an account
         </Link>
       </p>

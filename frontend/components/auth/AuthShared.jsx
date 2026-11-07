@@ -28,7 +28,7 @@ export function carryParams(params) {
 export function FieldError({ id, message }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="mt-1.5 text-[13px] text-coral">
+    <p id={id} role="alert" className="hand mt-1 text-lg leading-tight text-pink-deep">
       {message}
     </p>
   );
@@ -37,8 +37,8 @@ export function FieldError({ id, message }) {
 export function FormAlert({ message }) {
   if (!message) return null;
   return (
-    <div role="alert" className="mb-5 flex items-start gap-2.5 rounded-lg border border-coral/30 bg-coral/[0.07] px-3.5 py-3 text-[13px] text-coral">
-      <AlertCircle className="mt-px size-4 shrink-0" />
+    <div role="alert" className="mb-5 flex items-start gap-2.5 rounded-xl border-[1.5px] border-pink-deep bg-pink-soft px-3.5 py-3 text-sm font-medium text-ink">
+      <AlertCircle className="mt-px size-4 shrink-0 text-pink-deep" />
       <span>{message}</span>
     </div>
   );
@@ -74,12 +74,12 @@ export function SignedInNotice({ href }) {
   return (
     <Link
       href={href}
-      className="mb-6 flex items-center justify-between gap-3 rounded-lg border hairline-strong bg-ink-900 px-3.5 py-2.5 text-[13px] text-fg-muted transition-colors hover:text-fg"
+      className="mb-6 flex items-center justify-between gap-3 rounded-xl border-[1.5px] border-ink bg-green-soft px-3.5 py-2.5 text-sm text-ink-2 transition-transform hover:-translate-y-0.5"
     >
       <span className="truncate">
-        You&apos;re signed in as <span className="text-fg">{user.name}</span>
+        You&apos;re signed in as <span className="font-semibold text-ink">{user.name}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-1 text-signal">
+      <span className="flex shrink-0 items-center gap-1 font-display font-bold text-ink">
         Continue <ArrowRight className="size-3.5" />
       </span>
     </Link>
@@ -89,10 +89,9 @@ export function SignedInNotice({ href }) {
 export function RepoNotice({ repo }) {
   if (!repo) return null;
   return (
-    <div className="mb-6 flex items-center gap-2.5 rounded-lg border border-signal/25 bg-signal/[0.05] px-3.5 py-2.5 text-[13px] text-fg-muted">
-      <span className="size-1.5 shrink-0 rounded-full bg-signal" />
+    <div className="tape mb-7 rounded-xl border-[1.5px] border-ink bg-yellow-soft px-3.5 py-2.5 text-sm text-ink-2" style={{ "--tape-r": "4deg" }}>
       <span className="min-w-0 truncate">
-        Next up: indexing <span className="font-mono text-fg">{repo}</span>
+        Next up: cutting <span className="font-mono font-bold text-ink">{repo}</span>
       </span>
     </div>
   );
@@ -105,16 +104,22 @@ export function PasswordStrength({ value = "" }) {
     (/[A-Z]/.test(value) && /[a-z]/.test(value) ? 1 : 0) +
     (/\d/.test(value) && /[^A-Za-z0-9]/.test(value) ? 1 : 0);
   const labels = ["Too short", "Okay", "Good", "Strong", "Excellent"];
-  const colors = ["bg-coral", "bg-amber", "bg-amber", "bg-signal", "bg-signal"];
+  const colors = ["bg-pink", "bg-orange", "bg-yellow", "bg-green", "bg-green"];
   if (!value) return null;
   return (
     <div className="mt-2 flex items-center gap-3" aria-live="polite">
       <div className="flex flex-1 gap-1">
         {[0, 1, 2, 3].map((i) => (
-          <span key={i} className={cn("h-1 flex-1 rounded-full transition-colors", i < Math.max(score, 1) ? colors[score] : "bg-ink-700")} />
+          <span
+            key={i}
+            className={cn(
+              "h-2 flex-1 rounded-full border border-ink/60 transition-colors",
+              i < Math.max(score, 1) ? colors[score] : "bg-paper-3",
+            )}
+          />
         ))}
       </div>
-      <span className="w-16 text-right font-mono text-[11px] text-fg-subtle">{labels[score]}</span>
+      <span className="w-20 text-right font-mono text-[11px] text-ink-3">{labels[score]}</span>
     </div>
   );
 }

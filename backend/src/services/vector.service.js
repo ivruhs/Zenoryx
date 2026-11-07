@@ -56,7 +56,7 @@ async function search(projectId, queryVector, question, { candidates = 30, limit
   const wantsTests = /\b(test|tests|spec|testing|coverage)\b/i.test(question);
   const wantsDocs = /\b(readme|docs?|documentation|install|setup|usage)\b/i.test(question);
   const penalty = (r) =>
-    (!wantsTests && TEST_PATH.test(r.filePath) ? 0.04 : 0) + (!wantsDocs && r.language === "markdown" ? 0.015 : 0);
+    (!wantsTests && TEST_PATH.test(r.filePath) ? 0.06 : 0) + (!wantsDocs && r.language === "markdown" ? 0.02 : 0);
   const scored = rows
     .map((r) => ({
       ...r,

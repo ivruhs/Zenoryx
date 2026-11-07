@@ -57,8 +57,10 @@ function RegisterForm() {
     <>
       <SignedInNotice href={destination} />
       <RepoNotice repo={params.get("repo")} />
-      <h1 className="text-[28px] font-semibold tracking-[-0.035em]">Create your account</h1>
-      <p className="mt-2 text-[15px] text-fg-muted">Index a repository and start asking questions in under a minute.</p>
+      <h1 className="font-display text-4xl font-extrabold leading-[0.95] tracking-[-0.03em]">
+        Grab your <span className="marker marker-pink">scissors.</span>
+      </h1>
+      <p className="mt-3 text-[15px] text-ink-2">Make a free account, cut up a repository, and start asking questions in under a minute.</p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-5" noValidate>
         <FormAlert message={serverError} />
@@ -109,16 +111,16 @@ function RegisterForm() {
           <PasswordStrength value={watch("password")} />
           <FieldError id="password-error" message={errors.password?.message} />
         </div>
-        <button type="submit" className="btn btn-primary btn-lg w-full" disabled={signup.isPending}>
+        <button type="submit" className="btn btn-pink btn-lg w-full" disabled={signup.isPending}>
           {signup.isPending ? <Spinner /> : null}
           {signup.isPending ? "Creating account…" : "Create account"}
           {!signup.isPending && <ArrowRight className="size-4" />}
         </button>
       </form>
 
-      <p className="mt-8 border-t hairline pt-6 text-sm text-fg-subtle">
+      <p className="mt-8 border-t-[1.5px] border-dashed border-ink/30 pt-6 text-sm text-ink-3">
         Already have an account?{" "}
-        <Link href={`/login${carryParams(params)}`} className="font-medium text-fg underline decoration-white/20 underline-offset-4 hover:decoration-signal">
+        <Link href={`/login${carryParams(params)}`} className="font-display font-bold text-ink underline decoration-pink decoration-2 underline-offset-4 hover:bg-yellow">
           Sign in
         </Link>
       </p>

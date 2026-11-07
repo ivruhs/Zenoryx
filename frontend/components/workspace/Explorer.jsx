@@ -48,15 +48,17 @@ function TreeNode({ node, depth, openFile, activePath, expanded, toggle, citedPa
         onClick={() => openFile(node.path)}
         title={node.file.summary || node.path}
         className={cn(
-          "group flex h-7 w-full items-center gap-2 rounded-md pr-2 text-left text-[13px] transition-colors",
-          active ? "bg-ink-750 text-fg" : "text-fg-muted hover:bg-ink-800 hover:text-fg",
+          "group flex h-8 w-full items-center gap-2 rounded-lg pr-2 text-left text-[13.5px] transition-colors",
+          active ? "bg-yellow font-semibold text-ink shadow-[inset_0_0_0_1.5px_var(--color-ink)]" : "text-ink-2 hover:bg-paper-3 hover:text-ink",
         )}
         style={{ paddingLeft: depth * 12 + 10 }}
       >
         <LangDot language={node.file.language} />
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
-        {cited && <span className="size-1.5 shrink-0 rounded-full bg-signal" title="Cited in the selected answer" />}
-        <span className="shrink-0 font-mono text-[10px] text-fg-faint group-hover:text-fg-subtle">{node.file.chunks}</span>
+        {cited && <span className="size-2 shrink-0 rounded-full border border-ink bg-pink" title="Cited in the selected answer" />}
+        <span className="shrink-0 font-mono text-[10px] text-ink-4 group-hover:text-ink-3" title={`${node.file.chunks} chunks`}>
+          {node.file.chunks}
+        </span>
       </button>
     );
   }
@@ -66,7 +68,7 @@ function TreeNode({ node, depth, openFile, activePath, expanded, toggle, citedPa
       <button
         type="button"
         onClick={() => toggle(node.path)}
-        className="flex h-7 w-full items-center gap-1.5 rounded-md pr-2 text-left text-[13px] text-fg-subtle hover:bg-ink-800 hover:text-fg"
+        className="flex h-8 w-full items-center gap-1.5 rounded-lg pr-2 text-left font-display text-[13.5px] font-semibold text-ink-2 hover:bg-paper-3 hover:text-ink"
         style={{ paddingLeft: depth * 12 + 4 }}
         aria-expanded={isOpen}
       >
@@ -111,16 +113,16 @@ function FilesTab({ projectId, openFile, activePath, citedPaths }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="px-3 pb-2">
         <label className="relative block">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-faint" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter files or symbols"
             aria-label="Filter files"
-            className="h-8 w-full rounded-lg border hairline bg-ink-950 pl-8 pr-7 text-[13px] outline-none placeholder:text-fg-faint focus:border-signal/50"
+            className="h-9 w-full rounded-full border-[1.5px] border-ink bg-paper-2 pl-8 pr-8 text-[13px] outline-none transition-shadow placeholder:text-ink-4 focus:shadow-[3px_3px_0_0_var(--color-blue)]"
           />
           {filter && (
-            <button type="button" onClick={() => setFilter("")} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-fg-subtle hover:text-fg" aria-label="Clear filter">
+            <button type="button" onClick={() => setFilter("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink" aria-label="Clear filter">
               <X className="size-3.5" />
             </button>
           )}
@@ -134,8 +136,8 @@ function FilesTab({ projectId, openFile, activePath, citedPaths }) {
             ))}
           </div>
         )}
-        {isError && <p className="px-3 text-sm text-coral">Couldn&apos;t load files.</p>}
-        {!isPending && visible.length === 0 && <p className="px-3 pt-2 text-sm text-fg-subtle">No files match “{filter}”.</p>}
+        {isError && <p className="px-3 text-sm text-pink-deep">Couldn&apos;t load files.</p>}
+        {!isPending && visible.length === 0 && <p className="hand px-3 pt-2 text-xl text-ink-3">nothing matches “{filter}”</p>}
         {sortNodes(tree.children.values()).map((node) => (
           <TreeNode key={node.path} node={node} depth={0} openFile={openFile} activePath={activePath} expanded={expanded} toggle={toggle} citedPaths={citedPaths} />
         ))}
@@ -158,35 +160,35 @@ function CommitsTab({ projectId, project }) {
         ))}
       </div>
     );
-  if (!commits.length) return <p className="p-4 text-sm text-fg-subtle">No commit history was captured for this repository.</p>;
+  if (!commits.length) return <p className="hand p-4 text-xl text-ink-3">no commit history captured for this one.</p>;
   return (
     <ol className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-1">
       {commits.map((c, i) => {
         const total = (c.additions || 0) + (c.deletions || 0);
         return (
           <li key={c.id} className="relative pb-5 pl-5 last:pb-0">
-            {i < commits.length - 1 && <span className="absolute left-[3px] top-3 h-full w-px bg-[var(--line-strong)]" />}
-            <span className="absolute left-0 top-1.5 size-[7px] rounded-full border border-fg-subtle bg-ink-900" />
+            {i < commits.length - 1 && <span className="absolute left-[4px] top-4 h-full border-l-2 border-dashed border-ink-4" />}
+            <span className="absolute left-0 top-1.5 size-[10px] rounded-full border-[1.5px] border-ink bg-yellow" />
             <div className="flex items-center gap-2 font-mono text-[11px]">
               <a
                 href={`https://github.com/${project.repoOwner}/${project.repoName}/commit/${c.sha}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-signal hover:underline"
+                className="font-bold text-blue hover:underline"
               >
                 {c.sha.slice(0, 7)}
               </a>
-              <span className="text-fg-faint">·</span>
-              <span className="text-fg-subtle">{timeAgo(c.date)}</span>
+              <span className="text-ink-4">·</span>
+              <span className="text-ink-3">{timeAgo(c.date)}</span>
               {total > 0 && (
                 <span className="ml-auto flex items-center gap-1.5">
-                  <span className="text-signal/80">+{c.additions}</span>
-                  <span className="text-coral/80">−{c.deletions}</span>
+                  <span className="font-bold text-green">+{c.additions}</span>
+                  <span className="font-bold text-pink-deep">−{c.deletions}</span>
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[13px] leading-relaxed text-fg">{c.aiSummary}</p>
-            <p className="mt-1 truncate text-xs text-fg-subtle" title={c.message}>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-ink">{c.aiSummary}</p>
+            <p className="mt-1 truncate text-xs text-ink-3" title={c.message}>
               {c.message.split("\n")[0]} — {c.authorName}
             </p>
           </li>
@@ -200,7 +202,7 @@ export function Explorer({ project, openFile, activePath, citedPaths }) {
   const [tab, setTab] = useState("files");
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-1 p-3" role="tablist">
+      <div className="flex items-end gap-1 px-3 pt-3" role="tablist">
         {[
           { id: "files", label: "Files", icon: Folder, count: project.fileCount },
           { id: "history", label: "History", icon: GitCommitHorizontal },
@@ -212,16 +214,17 @@ export function Explorer({ project, openFile, activePath, citedPaths }) {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={cn(
-              "flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] transition-colors",
-              tab === t.id ? "bg-ink-750 text-fg" : "text-fg-subtle hover:text-fg",
+              "relative z-10 -mb-[1.5px] flex h-9 items-center gap-1.5 rounded-t-xl border-[1.5px] border-b-0 px-3 font-display text-[13.5px] font-semibold transition-colors",
+              tab === t.id ? "border-ink bg-paper-2 text-ink" : "border-transparent text-ink-3 hover:text-ink",
             )}
           >
             <t.icon className="size-3.5" />
             {t.label}
-            {t.count ? <span className="font-mono text-[10px] text-fg-faint">{t.count}</span> : null}
+            {t.count ? <span className="rounded-full bg-paper-3 px-1.5 font-mono text-[10px] text-ink-2">{t.count}</span> : null}
           </button>
         ))}
       </div>
+      <div className="mb-3 border-t-[1.5px] border-ink" />
       {tab === "files" ? (
         <FilesTab projectId={project.id} openFile={openFile} activePath={activePath} citedPaths={citedPaths} />
       ) : (

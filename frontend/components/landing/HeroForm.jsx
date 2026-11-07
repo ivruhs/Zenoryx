@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Scissors } from "lucide-react";
 import { useMe } from "@/hooks/useMe";
 import { cn } from "@/lib/format";
 
@@ -45,13 +45,13 @@ export function HeroForm({ className }) {
       </label>
       <div
         className={cn(
-          "group flex h-14 items-center rounded-xl border bg-ink-900 p-1.5 pl-4 transition-[border-color,box-shadow]",
+          "group flex h-16 items-center rounded-full border-[1.5px] border-ink bg-paper-2 p-1.5 pl-5 transition-[box-shadow,transform] duration-200",
           error
-            ? "border-coral/60"
-            : "border-[var(--line-strong)] focus-within:border-signal/60 focus-within:shadow-[0_0_0_4px_rgba(200,245,66,0.08)]",
+            ? "shadow-[5px_5px_0_0_var(--color-pink-deep)]"
+            : "shadow-[5px_5px_0_0_var(--color-ink)] focus-within:-translate-x-0.5 focus-within:-translate-y-0.5 focus-within:shadow-[7px_7px_0_0_var(--color-blue)]",
         )}
       >
-        <span className="select-none font-mono text-sm text-fg-subtle">github.com/</span>
+        <span className="select-none font-mono text-sm text-ink-3">github.com/</span>
         <input
           id="hero-repo"
           value={value}
@@ -64,16 +64,19 @@ export function HeroForm({ className }) {
           spellCheck={false}
           aria-invalid={Boolean(error)}
           aria-describedby="hero-repo-hint"
-          className="min-w-0 flex-1 bg-transparent font-mono text-sm text-fg outline-none placeholder:text-fg-faint"
+          className="min-w-0 flex-1 bg-transparent font-mono text-[15px] text-ink outline-none placeholder:text-ink-4"
         />
-        <button type="submit" className="btn btn-primary h-full shrink-0 px-4">
-          <span className="hidden sm:inline">Index repository</span>
-          <span className="sm:hidden">Index</span>
-          <ArrowRight className="size-4" />
+        <button
+          type="submit"
+          className="btn btn-pink h-full shrink-0 px-5 shadow-none hover:shadow-none sm:px-6"
+        >
+          <Scissors className="size-4" />
+          <span className="hidden sm:inline">Cut it up</span>
+          <span className="sm:hidden">Cut</span>
         </button>
       </div>
-      <p id="hero-repo-hint" className={cn("mt-2.5 font-mono text-[11px]", error ? "text-coral" : "text-fg-subtle")}>
-        {error || "Any public repository · top 36 files ranked by relevance · free"}
+      <p id="hero-repo-hint" className={cn("mt-4 pl-5 font-mono text-[12px]", error ? "text-pink-deep" : "text-ink-3")}>
+        {error || "any public repo · top 36 files ranked by relevance · free"}
       </p>
     </form>
   );
@@ -82,15 +85,15 @@ export function HeroForm({ className }) {
 export function CtaButtons({ className }) {
   const { data: user } = useMe();
   return (
-    <div className={cn("flex flex-wrap items-center gap-3", className)}>
+    <div className={cn("flex flex-wrap items-center gap-4", className)}>
       {user ? (
         <Link href="/dashboard" className="btn btn-primary btn-lg">
           Open dashboard <ArrowRight className="size-4" />
         </Link>
       ) : (
         <>
-          <Link href="/register" className="btn btn-primary btn-lg">
-            Create a free account <ArrowRight className="size-4" />
+          <Link href="/register" className="btn btn-pink btn-lg">
+            Redeem it — it&apos;s free <ArrowRight className="size-4" />
           </Link>
           <Link href="/login" className="btn btn-secondary btn-lg">
             Sign in

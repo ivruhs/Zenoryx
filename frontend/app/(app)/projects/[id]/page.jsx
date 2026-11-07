@@ -15,7 +15,7 @@ export default function ProjectPage({ params }) {
   if (isPending) {
     return (
       <div className="grid flex-1 place-items-center">
-        <LogoMark className="size-8 animate-pulse text-fg-subtle" />
+        <LogoMark className="size-10 animate-wiggle" />
       </div>
     );
   }
@@ -25,14 +25,14 @@ export default function ProjectPage({ params }) {
     return (
       <main className="grid flex-1 place-items-center px-4">
         <div className="max-w-sm text-center">
-          <span className="mx-auto mb-5 grid size-12 place-items-center rounded-xl border hairline bg-ink-900">
-            <SearchX className="size-5 text-fg-subtle" />
+          <span className="stamp mb-6 text-sm animate-stamp" style={{ "--stamp": "var(--color-pink-deep)", "--r": "-6deg" }}>
+            <SearchX className="size-4" /> {missing ? "Not found" : "Misprint"}
           </span>
-          <h1 className="text-xl font-semibold tracking-tight">{missing ? "Repository not found" : "Couldn’t load repository"}</h1>
-          <p className="mt-2 text-sm text-fg-muted">
+          <h1 className="font-display text-3xl font-extrabold tracking-[-0.04em]">{missing ? "Repository not found" : "Couldn’t load repository"}</h1>
+          <p className="mt-2 text-ink-2">
             {missing ? "It may have been deleted, or it belongs to another account." : error.message}
           </p>
-          <div className="mt-6 flex justify-center gap-2">
+          <div className="mt-7 flex justify-center gap-3">
             {!missing && (
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => refetch()}>
                 Try again

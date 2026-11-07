@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Eraser, ExternalLink, FileCode2, FolderTree, MessageSquare, PanelRight, Star, Trash2, X } from "lucide-react";
+import { ArrowLeft, Eraser, ExternalLink, FileCode2, FolderTree, MessageSquare, PanelRight, Scissors, Star, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, qk } from "@/lib/api";
 import { cn, formatCount } from "@/lib/format";
@@ -28,7 +28,7 @@ function ArmedButton({ onConfirm, children, armedLabel, className, disabled }) {
       type="button"
       disabled={disabled}
       onClick={() => (armed ? (setArmed(false), onConfirm()) : setArmed(true))}
-      className={cn(className, armed && "!bg-coral/15 !text-coral")}
+      className={cn(className, armed && "!bg-pink-soft !text-pink-deep ring-[1.5px] ring-pink-deep")}
     >
       {armed ? armedLabel : children}
     </button>
@@ -44,12 +44,12 @@ function Drawer({ side, open, onClose, children, label }) {
   }, [open, onClose]);
   return (
     <div className={cn("fixed inset-0 z-50", open ? "pointer-events-auto" : "pointer-events-none")} aria-hidden={!open}>
-      <div className={cn("absolute inset-0 bg-black/60 transition-opacity", open ? "opacity-100" : "opacity-0")} onClick={onClose} />
+      <div className={cn("absolute inset-0 bg-ink/30 backdrop-blur-[2px] transition-opacity", open ? "opacity-100" : "opacity-0")} onClick={onClose} />
       <aside
         aria-label={label}
         className={cn(
-          "absolute top-0 flex h-full w-[min(88vw,400px)] flex-col border-[var(--line-strong)] bg-ink-900 transition-transform duration-300 ease-out",
-          side === "left" ? "left-0 border-r" : "right-0 border-l",
+          "absolute top-0 flex h-full w-[min(88vw,400px)] flex-col border-ink bg-paper-2 transition-transform duration-300 ease-out",
+          side === "left" ? "left-0 border-r-[1.5px]" : "right-0 border-l-[1.5px] bg-paper",
           open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
         )}
       >
@@ -153,7 +153,7 @@ export function Workspace({ project }) {
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
       {/* Repository bar */}
-      <div className="flex h-12 shrink-0 items-center gap-3 border-b hairline px-3 sm:px-4">
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b-[1.5px] border-ink bg-paper-2 px-3 sm:px-4">
         <Link href="/dashboard" className="icon-btn" aria-label="Back to repositories">
           <ArrowLeft className="size-4" />
         </Link>
@@ -161,20 +161,23 @@ export function Workspace({ project }) {
           <FolderTree className="size-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-medium">
-            <span className="text-fg-subtle">{project.repoOwner}/</span>
+          <h1 className="truncate font-display text-lg font-bold tracking-[-0.025em]">
+            <span className="font-medium text-ink-3">{project.repoOwner}/</span>
             {project.repoName}
           </h1>
         </div>
-        <div className="hidden items-center gap-4 font-mono text-[11px] text-fg-subtle md:flex">
+        <div className="hidden items-center gap-4 font-mono text-[11px] text-ink-2 md:flex">
           {project.stars != null && (
             <span className="flex items-center gap-1">
-              <Star className="size-3" />
+              <Star className="size-3 fill-yellow" />
               {formatCount(project.stars)}
             </span>
           )}
           <span>{project.fileCount} files</span>
-          <span>{formatCount(project.chunkCount)} chunks</span>
+          <span className="flex items-center gap-1">
+            <Scissors className="size-3" />
+            {formatCount(project.chunkCount)} clippings
+          </span>
           {Array.isArray(project.languages) && <LanguageBar languages={project.languages} className="w-24" />}
         </div>
         <div className="flex items-center gap-0.5">
@@ -206,13 +209,13 @@ export function Workspace({ project }) {
       </div>
 
       <div className="grid min-h-0 flex-1 lg:grid-cols-[272px_minmax(0,1fr)] xl:grid-cols-[272px_minmax(0,1fr)_380px]">
-        <aside className="hidden min-h-0 border-r hairline bg-ink-950 lg:flex lg:flex-col" aria-label="Explorer">
+        <aside className="hidden min-h-0 border-r-[1.5px] border-ink bg-paper-2 lg:flex lg:flex-col" aria-label="Explorer">
           {explorer}
         </aside>
 
-        <section className="flex min-h-0 flex-col bg-ink-950" aria-label="Workspace">
+        <section className="flex min-h-0 flex-col" aria-label="Workspace">
           {tabs.length > 0 && (
-            <div className="scroll-thin flex h-10 shrink-0 items-end gap-px overflow-x-auto border-b hairline bg-ink-900 px-2" role="tablist">
+            <div className="scroll-thin flex h-11 shrink-0 items-end gap-1 overflow-x-auto border-b-[1.5px] border-ink px-3" role="tablist">
               {[{ id: "chat" }, ...tabs.map((p) => ({ id: p }))].map((t) => {
                 const isChat = t.id === "chat";
                 const selected = active === t.id;
@@ -220,8 +223,8 @@ export function Workspace({ project }) {
                   <div
                     key={t.id}
                     className={cn(
-                      "group flex h-9 shrink-0 items-center gap-2 rounded-t-lg border-x border-t px-3 text-[12.5px]",
-                      selected ? "border-[var(--line)] bg-ink-950 text-fg" : "border-transparent text-fg-subtle hover:text-fg",
+                      "group relative z-10 -mb-[1.5px] flex h-9 shrink-0 items-center gap-2 rounded-t-xl border-[1.5px] border-b-0 px-3 text-[13px]",
+                      selected ? "border-ink bg-paper font-semibold text-ink" : "border-transparent text-ink-3 hover:text-ink",
                     )}
                   >
                     <button type="button" role="tab" aria-selected={selected} onClick={() => setActive(t.id)} className="flex items-center gap-2">
@@ -229,7 +232,7 @@ export function Workspace({ project }) {
                       <span className={cn(!isChat && "font-mono")}>{isChat ? "Ask" : t.id.split("/").pop()}</span>
                     </button>
                     {!isChat && (
-                      <button type="button" onClick={() => closeTab(t.id)} className="rounded p-0.5 text-fg-faint hover:bg-ink-700 hover:text-fg" aria-label={`Close ${t.id}`}>
+                      <button type="button" onClick={() => closeTab(t.id)} className="rounded-full p-0.5 text-ink-4 hover:bg-pink-soft hover:text-pink-deep" aria-label={`Close ${t.id}`}>
                         <X className="size-3" />
                       </button>
                     )}
@@ -256,13 +259,13 @@ export function Workspace({ project }) {
           </div>
         </section>
 
-        <aside className="hidden min-h-0 border-l hairline bg-ink-950 xl:flex xl:flex-col" aria-label="Sources">
+        <aside className="hidden min-h-0 border-l-[1.5px] border-ink bg-paper xl:flex xl:flex-col" aria-label="Sources">
           {sources}
         </aside>
       </div>
 
       <Drawer side="left" open={drawer === "files"} onClose={() => setDrawer(null)} label="File explorer">
-        <div className="flex items-center gap-2 px-4 pt-4 font-mono text-xs text-fg-subtle">
+        <div className="flex items-center gap-2 px-4 pt-4 font-mono text-xs text-ink-3">
           <FileCode2 className="size-3.5" /> {project.repoName}
         </div>
         {explorer}

@@ -39,7 +39,7 @@ function CardMenu({ project, onDelete }) {
     <div className="relative" ref={ref}>
       <button
         type="button"
-        className={cn("icon-btn size-7", open && "bg-ink-800 text-fg")}
+        className={cn("icon-btn size-8", open && "bg-paper-3 text-ink")}
         aria-label={`Actions for ${project.repoName}`}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -51,7 +51,7 @@ function CardMenu({ project, onDelete }) {
         <MoreHorizontal className="size-4" />
       </button>
       {open && (
-        <div role="menu" className="panel-raised absolute right-0 top-9 z-30 w-48 animate-fade-in p-1" onClick={stop}>
+        <div role="menu" className="paper offset-ink absolute right-0 top-10 z-30 w-52 animate-pop p-1.5" style={{ "--r": "0deg" }} onClick={stop}>
           <a
             role="menuitem"
             href={`https://github.com/${project.repoOwner}/${project.repoName}`}
@@ -61,7 +61,7 @@ function CardMenu({ project, onDelete }) {
               e.stopPropagation();
               setOpen(false);
             }}
-            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-fg-muted hover:bg-ink-800 hover:text-fg"
+            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-2 hover:bg-paper-3 hover:text-ink"
           >
             <ExternalLink className="size-3.5" /> Open on GitHub
           </a>
@@ -73,7 +73,7 @@ function CardMenu({ project, onDelete }) {
               setOpen(false);
               onDelete();
             }}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-coral/90 hover:bg-coral/10 hover:text-coral"
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-pink-deep hover:bg-pink-soft"
           >
             <Trash2 className="size-3.5" /> Delete
           </button>
@@ -91,7 +91,15 @@ function Stat({ children, title }) {
   );
 }
 
-export function RepoCard({ project }) {
+const TAPES = [
+  { cls: "", r: "-3deg" },
+  { cls: "tape-pink", r: "2.5deg" },
+  { cls: "tape-blue", r: "-1.5deg" },
+  { cls: "", r: "3deg" },
+  { cls: "tape-pink", r: "-2deg" },
+];
+
+export function RepoCard({ project, index = 0 }) {
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const active = isActive(project.status);
@@ -127,35 +135,36 @@ export function RepoCard({ project }) {
     <>
       <div
         className={cn(
-          "group relative flex h-full min-h-[212px] flex-col rounded-[14px] border hairline bg-ink-900 p-5 transition-[border-color,background-color] duration-200",
-          "hover:border-white/15 hover:bg-ink-850 has-[:focus-visible]:border-signal/50",
-          failed && "border-coral/20",
+          "paper tape group relative flex h-full min-h-[236px] flex-col p-5 pt-6 transition-[transform,box-shadow] duration-300 ease-[var(--ease-spring)]",
+          "hover:-translate-y-1 hover:shadow-[6px_6px_0_0_var(--color-ink)] has-[:focus-visible]:shadow-[6px_6px_0_0_var(--color-blue)]",
+          TAPES[index % TAPES.length].cls,
         )}
+        style={{ "--tape-r": TAPES[index % TAPES.length].r }}
       >
         {/* Stretched link: the whole card navigates, while menus/buttons sit above it. */}
         <Link
           href={`/projects/${project.id}`}
           data-card-link
-          className="absolute inset-0 z-0 rounded-[14px] focus-visible:outline-none"
+          className="absolute inset-0 z-0 rounded-[16px] focus-visible:outline-none"
           aria-label={`Open ${project.repoOwner}/${project.repoName}`}
         />
-        {/* Header */}
-        <div className="pointer-events-none flex items-start justify-between gap-3">
+        {/* Header — index-card style with a pink rule */}
+        <div className="pointer-events-none flex items-start justify-between gap-3 border-b-2 border-pink pb-3">
           <div className="min-w-0">
-            <div className="truncate font-mono text-xs text-fg-subtle">{project.repoOwner}/</div>
-            <h3 className="mt-0.5 truncate text-[17px] font-semibold tracking-[-0.02em] text-fg transition-colors group-hover:text-white">
+            <div className="truncate font-mono text-xs text-ink-3">{project.repoOwner}/</div>
+            <h3 className="mt-0.5 truncate font-display text-[22px] font-extrabold leading-tight tracking-[-0.035em] text-ink">
               {project.repoName}
             </h3>
           </div>
-          <div className="pointer-events-auto relative z-10 -mr-1.5 -mt-1 flex shrink-0 items-center gap-1">
+          <div className="pointer-events-auto relative z-10 -mr-1.5 flex shrink-0 items-center gap-1.5 pt-1">
             <StatusPill status={project.status} stage={project.stage} />
             <CardMenu project={project} onDelete={() => setConfirming(true)} />
           </div>
         </div>
 
         {/* Body */}
-        <p className={cn("pointer-events-none mt-3 line-clamp-2 text-sm leading-relaxed", project.description ? "text-fg-muted" : "italic text-fg-faint")}>
-          {project.description || "No description provided."}
+        <p className={cn("pointer-events-none mt-3 line-clamp-2 text-[15px] leading-relaxed", project.description ? "text-ink-2" : "hand text-lg text-ink-4")}>
+          {project.description || "no description on the tin"}
         </p>
 
         <div className="pointer-events-none mt-auto pt-5">
@@ -163,13 +172,13 @@ export function RepoCard({ project }) {
             <StageTrack project={project} />
           ) : failed ? (
             <div className="flex items-center gap-3">
-              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-coral/90" title={project.errorMessage || ""}>
+              <p className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-pink-deep" title={project.errorMessage || ""}>
                 <AlertCircle className="size-3.5 shrink-0" />
                 <span className="truncate">{project.errorMessage || "Ingestion failed."}</span>
               </p>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm pointer-events-auto relative z-10 shrink-0"
+                className="btn btn-yellow btn-sm pointer-events-auto relative z-10 shrink-0"
                 disabled={retry.isPending}
                 onClick={(e) => {
                   stop(e);
@@ -185,16 +194,16 @@ export function RepoCard({ project }) {
           )}
 
           {/* Footer stats */}
-          <div className="mt-4 flex items-center gap-x-4 gap-y-1 border-t hairline pt-3.5 font-mono text-[11px] text-fg-subtle">
+          <div className="mt-4 flex items-center gap-x-4 gap-y-1 border-t-2 border-dashed border-ink/15 pt-3.5 font-mono text-[11px] text-ink-3">
             <Stat title="Files indexed">
-              <span className="text-fg-muted tabular-nums">{project.fileCount}</span> files
+              <span className="font-bold tabular-nums text-ink">{project.fileCount}</span> files
             </Stat>
             <Stat title="Semantic chunks">
-              <span className="text-fg-muted tabular-nums">{formatCount(project.chunkCount)}</span> chunks
+              <span className="font-bold tabular-nums text-ink">{formatCount(project.chunkCount)}</span> chunks
             </Stat>
             {project.stars != null && (
               <Stat title="GitHub stars">
-                <Star className="size-3" /> <span className="tabular-nums">{formatCount(project.stars)}</span>
+                <Star className="size-3 fill-yellow text-ink" /> <span className="tabular-nums">{formatCount(project.stars)}</span>
               </Stat>
             )}
             <span className="ml-auto truncate" title={new Date(project.createdAt).toLocaleString()}>
@@ -220,14 +229,15 @@ export function RepoCard({ project }) {
 
 export function RepoCardSkeleton() {
   return (
-    <div className="flex min-h-[212px] flex-col rounded-[14px] border hairline bg-ink-900 p-5">
+    <div className="paper-soft flex min-h-[236px] flex-col p-5">
       <div className="skeleton h-3 w-20" />
-      <div className="skeleton mt-2 h-5 w-40" />
+      <div className="skeleton mt-2 h-6 w-40" />
+      <div className="mt-3 h-0.5 w-full bg-pink-soft" />
       <div className="skeleton mt-4 h-3 w-full" />
       <div className="skeleton mt-2 h-3 w-2/3" />
       <div className="mt-auto">
-        <div className="skeleton h-1.5 w-full" />
-        <div className="mt-4 flex gap-4 border-t hairline pt-3.5">
+        <div className="skeleton h-2.5 w-full" />
+        <div className="mt-4 flex gap-4 border-t-2 border-dashed border-ink/10 pt-3.5">
           <div className="skeleton h-3 w-14" />
           <div className="skeleton h-3 w-16" />
         </div>

@@ -1,70 +1,117 @@
 import { STAGES } from "@/lib/pipeline";
+import { cn } from "@/lib/format";
 
-/** Tiny mono "readouts" that show what each stage actually produces. */
-const READOUTS = {
-  fetching: (
-    <ul className="space-y-1">
-      <li className="flex justify-between"><span className="truncate">src/server.ts</span><span className="text-signal">9.4</span></li>
-      <li className="flex justify-between"><span className="truncate">lib/auth.ts</span><span className="text-signal">8.1</span></li>
-      <li className="flex justify-between text-fg-faint line-through"><span className="truncate">test/a.spec.ts</span><span>−6</span></li>
-    </ul>
-  ),
-  parsing: (
-    <ul className="space-y-1">
-      <li>program</li>
-      <li className="pl-3 text-fg-muted">└ function_declaration</li>
-      <li className="pl-3 text-fg-muted">└ class_declaration</li>
-      <li className="pl-6 text-fg-faint">└ method_definition</li>
-    </ul>
-  ),
-  summarizing: (
-    <div className="space-y-1">
-      <div className="text-fg-muted">{"{ \"files\": [{"}</div>
-      <div className="truncate pl-3">&quot;summary&quot;: &quot;Verifies HMAC…&quot;</div>
-      <div className="text-fg-muted">{"}] }"}</div>
-    </div>
-  ),
-  embedding: (
-    <div>
-      <div className="grid grid-cols-12 gap-[2px]">
-        {Array.from({ length: 36 }, (_, i) => (
-          <span
-            key={i}
-            className="h-2 rounded-[1.5px]"
-            style={{ background: `rgba(94,227,239,${0.15 + ((i * 37) % 11) / 13})` }}
-          />
-        ))}
-      </div>
-      <div className="mt-1.5 text-fg-faint">32 texts / request</div>
-    </div>
-  ),
-  commits: (
-    <ul className="space-y-1">
-      <li><span className="text-amber">5317ebe</span> <span className="text-signal">+1</span> <span className="text-coral">−1</span></li>
-      <li><span className="text-amber">ee714bd</span> <span className="text-signal">+3</span> <span className="text-coral">−3</span></li>
-      <li className="truncate text-fg-faint">“Replaced app.del() with…”</li>
-    </ul>
-  ),
-};
+/* Tiny spot-colour illustrations, one per stage. */
+function FetchArt() {
+  return (
+    <svg viewBox="0 0 120 70" className="h-full w-full" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <g key={i} transform={`translate(${14 + i * 8} ${10 + i * 7}) rotate(${-6 + i * 5})`}>
+          <rect width="58" height="40" rx="5" fill={["var(--color-paper-2)", "var(--color-yellow)", "var(--color-paper-2)"][i]} stroke="var(--color-ink)" strokeWidth="1.8" />
+          <path d="M8 11h26M8 19h38M8 27h20" stroke="var(--color-ink)" strokeOpacity=".35" strokeWidth="2" strokeLinecap="round" />
+        </g>
+      ))}
+      {[38, 26, 14].map((h, i) => (
+        <rect key={i} x={88 + i * 9} y={60 - h} width="6" height={h} rx="2" fill="var(--color-pink)" stroke="var(--color-ink)" strokeWidth="1.5" />
+      ))}
+    </svg>
+  );
+}
+function CutArt() {
+  return (
+    <svg viewBox="0 0 120 70" className="h-full w-full" aria-hidden="true">
+      <rect x="10" y="6" width="78" height="24" rx="5" fill="var(--color-blue-soft)" stroke="var(--color-ink)" strokeWidth="1.8" transform="rotate(-4 49 18)" />
+      <rect x="22" y="40" width="78" height="24" rx="5" fill="var(--color-pink-soft)" stroke="var(--color-ink)" strokeWidth="1.8" transform="rotate(3 61 52)" />
+      <path d="M4 35h112" stroke="var(--color-ink)" strokeWidth="2" strokeDasharray="5 4" />
+      <g transform="translate(84 24)">
+        <circle cx="6" cy="6" r="5" fill="var(--color-yellow)" stroke="var(--color-ink)" strokeWidth="1.8" />
+        <circle cx="6" cy="18" r="5" fill="var(--color-pink)" stroke="var(--color-ink)" strokeWidth="1.8" />
+        <path d="M10 9 L30 13 M10 15 L30 9" stroke="var(--color-ink)" strokeWidth="2.4" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+function AnnotateArt() {
+  return (
+    <svg viewBox="0 0 120 70" className="h-full w-full" aria-hidden="true">
+      <rect x="16" y="6" width="88" height="58" rx="5" fill="var(--color-paper-2)" stroke="var(--color-ink)" strokeWidth="1.8" />
+      <path d="M30 6v58" stroke="var(--color-pink)" strokeWidth="1.6" />
+      {[18, 28, 38, 48].map((y) => (
+        <path key={y} d={`M24 ${y}h74`} stroke="var(--color-blue)" strokeOpacity=".22" strokeWidth="1.4" />
+      ))}
+      <path d="M36 17c8-4 14 3 22-1s14 2 22-1M36 27c10-3 18 3 30 0M36 37c6-3 12 2 18 0" stroke="var(--color-ink)" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <path d="M58 44h34" stroke="var(--color-yellow)" strokeWidth="7" strokeLinecap="round" opacity=".9" />
+    </svg>
+  );
+}
+function EmbedArt() {
+  return (
+    <svg viewBox="0 0 120 70" className="h-full w-full" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, r) =>
+        Array.from({ length: 13 }, (_, c) => {
+          const v = Math.abs(Math.sin(r * 1.7 + c * 0.9));
+          return <circle key={`${r}-${c}`} cx={10 + c * 8.3} cy={10 + r * 10} r={1 + v * 2.8} fill={v > 0.75 ? "var(--color-pink)" : "var(--color-blue)"} />;
+        }),
+      )}
+    </svg>
+  );
+}
+function HistoryArt() {
+  return (
+    <svg viewBox="0 0 120 70" className="h-full w-full" aria-hidden="true">
+      <path d="M14 35h92" stroke="var(--color-ink)" strokeWidth="2" />
+      {[14, 44, 74, 104].map((x, i) => (
+        <g key={x}>
+          <circle cx={x} cy="35" r="7" fill={i === 3 ? "var(--color-green)" : "var(--color-paper-2)"} stroke="var(--color-ink)" strokeWidth="2" />
+          <rect x={x - 12} y={i % 2 ? 46 : 8} width="24" height="12" rx="3" fill={i % 2 ? "var(--color-green-soft)" : "var(--color-orange-soft)"} stroke="var(--color-ink)" strokeWidth="1.4" />
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+const ART = [FetchArt, CutArt, AnnotateArt, EmbedArt, HistoryArt];
+const TINTS = ["bg-yellow-soft", "bg-pink-soft", "bg-blue-soft", "bg-paper-2", "bg-green-soft"];
+const TILTS = [-1.2, 0.8, -0.6, 1.1, -0.9];
 
 export function PipelineTrack() {
   return (
-    <ol className="relative grid gap-px overflow-hidden rounded-2xl border hairline bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-5">
-      {STAGES.map((s, i) => (
-        <li key={s.id} className="group relative flex flex-col bg-ink-900 p-5 transition-colors hover:bg-ink-850">
-          <div className="flex items-center justify-between">
-            <span className="font-mono text-[11px] text-fg-faint">0{i + 1}</span>
-            <span className="h-px flex-1 mx-3 bg-gradient-to-r from-[var(--line-strong)] to-transparent" />
-            <span className="size-1.5 rounded-full bg-signal/70 transition-colors group-hover:bg-signal" />
-          </div>
-          <h3 className="mt-5 text-lg font-semibold tracking-[-0.02em]">{s.label}</h3>
-          <p className="mt-1.5 text-[13px] leading-relaxed text-fg-muted">{s.verb}.</p>
-          <div className="mt-5 flex-1 rounded-lg border hairline bg-ink-950 p-3 font-mono text-[10.5px] leading-[1.6] text-fg-subtle">
-            {READOUTS[s.id]}
-          </div>
-          <p className="mt-3 font-mono text-[10.5px] text-fg-faint">{s.hint}</p>
-        </li>
-      ))}
+    <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
+      {STAGES.map((stage, i) => {
+        const Art = ART[i];
+        return (
+          <li
+            key={stage.id}
+            className="group relative transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1"
+            style={{ transform: `rotate(${TILTS[i]}deg)` }}
+          >
+            <div className="paper flex h-full flex-col overflow-hidden">
+              <div className={cn("relative h-28 border-b-[1.5px] border-ink p-3", TINTS[i])}>
+                <Art />
+                <span className="absolute left-3 top-2 font-display text-3xl font-extrabold tracking-tighter text-ink" style={{ fontVariationSettings: '"wdth" 75' }}>
+                  0{i + 1}
+                </span>
+              </div>
+              <div className="flex flex-1 flex-col p-4">
+                <h3 className="font-display text-xl font-extrabold tracking-tight">{stage.label}</h3>
+                <p className="mt-1 text-[14px] leading-snug text-ink-2">{stage.verb}.</p>
+                <p className="mt-auto pt-4 font-mono text-[10.5px] uppercase tracking-wide text-ink-3">{stage.hint}</p>
+              </div>
+            </div>
+            <span
+              className="hand pointer-events-none absolute -right-1 -top-4 rounded-md bg-paper px-1.5 text-xl text-pink-deep"
+              style={{ transform: `rotate(${i % 2 ? 5 : -4}deg)` }}
+            >
+              {stage.note}
+            </span>
+            {i < STAGES.length - 1 && (
+              <span aria-hidden="true" className="absolute -right-3.5 top-1/2 z-10 hidden font-display text-2xl font-black text-ink lg:block">
+                →
+              </span>
+            )}
+          </li>
+        );
+      })}
     </ol>
   );
 }

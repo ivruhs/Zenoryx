@@ -7,16 +7,17 @@ const KEYWORDS = new Set([
 ]);
 const TYPES = new Set(["string", "number", "boolean", "void", "Promise", "Buffer", "Date", "Set", "Map"]);
 
+// Riso spot-ink palette (matches the CodeBlock theme on paper).
 const COLORS = {
-  comment: "#5f5f6b",
-  string: "#bfe383",
-  number: "#ffc278",
-  keyword: "#ff9580",
-  fn: "#7fdcef",
-  type: "#f2d38a",
-  prop: "#aec4ff",
-  ident: "#d4d4db",
-  punct: "#7d7d89",
+  comment: "#9a917f",
+  string: "#c41f6e",
+  number: "#d4541a",
+  keyword: "#2b59c3",
+  fn: "#00875a",
+  type: "#b0570f",
+  prop: "#4a3fa8",
+  ident: "#2a2620",
+  punct: "#7a7366",
 };
 
 const TOKEN_RE =
@@ -53,7 +54,14 @@ export function CodeText({ line }) {
     t.kind === "space" ? (
       <span key={i}>{t.text}</span>
     ) : (
-      <span key={i} style={{ color: COLORS[t.kind], fontStyle: t.kind === "comment" ? "italic" : undefined }}>
+      <span
+        key={i}
+        style={{
+          color: COLORS[t.kind],
+          fontStyle: t.kind === "comment" ? "italic" : undefined,
+          fontWeight: t.kind === "keyword" ? 700 : undefined,
+        }}
+      >
         {t.text}
       </span>
     ),

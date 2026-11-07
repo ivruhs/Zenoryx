@@ -1,9 +1,9 @@
 // Language display metadata. Colours are tuned for the ink palette.
 const LANGS = {
-  javascript: { label: "JavaScript", color: "#f0db4f", ext: "js" },
-  typescript: { label: "TypeScript", color: "#4d9bf0", ext: "ts" },
-  tsx: { label: "TSX", color: "#5cc8f5", ext: "tsx" },
-  python: { label: "Python", color: "#6aa7e8", ext: "py" },
+  javascript: { label: "JavaScript", color: "#ffd84a", ext: "js" },
+  typescript: { label: "TypeScript", color: "#4f7fe0", ext: "ts" },
+  tsx: { label: "TSX", color: "#7fb6ff", ext: "tsx" },
+  python: { label: "Python", color: "#3fa0a8", ext: "py" },
   java: { label: "Java", color: "#e8925a", ext: "java" },
   cpp: { label: "C++", color: "#f06b9a", ext: "cpp" },
   c: { label: "C", color: "#a8b9cc", ext: "c" },
@@ -21,11 +21,11 @@ const LANGS = {
   css: { label: "CSS", color: "#7f8cff", ext: "css" },
   sql: { label: "SQL", color: "#e3c67a", ext: "sql" },
   shell: { label: "Shell", color: "#8fdc6a", ext: "sh" },
-  markdown: { label: "Markdown", color: "#9aa0ab", ext: "md" },
+  markdown: { label: "Markdown", color: "#c9bfae", ext: "md" },
 };
 
 export function langMeta(language) {
-  return LANGS[language] || { label: language || "Other", color: "#6e6e7a", ext: "" };
+  return LANGS[language] || { label: language || "Other", color: "#b8ad9a", ext: "" };
 }
 
 /** Prism grammar name for react-syntax-highlighter. */

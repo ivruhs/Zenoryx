@@ -1,6 +1,6 @@
 # Zenoryx
 
-**X-ray vision for codebases.** Point Zenoryx at any public GitHub repository and ask it questions in plain English. It parses the code into its real syntax tree, embeds every function and class, and streams back answers in which each claim is cited down to the exact file and line.
+**Cut any codebase into answers.** Point Zenoryx at any public GitHub repository and ask it questions in plain English. It parses the code into its real syntax tree, embeds every function and class, and streams back answers in which each claim is cited down to the exact file and line.
 
 ![Zenoryx workspace: a streamed, cited answer with retrieved sources](docs/screenshots/workspace.png)
 
@@ -58,7 +58,7 @@ Embed the question (merged with the previous question for short follow-ups) → 
 
 ## Tech stack
 
-**Web:** Next.js 15, React 19, Tailwind CSS 4, TanStack Query, react-hook-form + zod, react-markdown, Prism. Fonts: Geist, Geist Mono, Instrument Serif.
+**Web:** Next.js 15, React 19, Tailwind CSS 4, TanStack Query, react-hook-form + zod, react-markdown, Prism. Design: a light "cut & paste" risograph-zine system (Bricolage Grotesque, Instrument Sans, Space Mono, Caveat). Chunk boundaries are scissor cut-lines, sources are taped clippings, and statuses are rubber stamps.
 **API:** Node 20+, Express 5, Prisma 6 (pg driver adapter), pgvector, Tree-sitter, Octokit, pino, helmet, express-rate-limit.
 **AI:** Gemini `gemini-embedding-001` + Flash-Lite pool, Groq `gpt-oss-120b` / `gpt-oss-20b` / `qwen3.8-27b`. All on free tiers.
 

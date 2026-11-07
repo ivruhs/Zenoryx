@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, FolderGit2, LayoutGrid, LogOut, Plus, Search } from "lucide-react";
+import { ArrowRight, FolderGit2, LayoutGrid, LogOut, Plus, Scissors, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Logo, LogoMark } from "@/components/ui/Logo";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -33,16 +33,18 @@ function useRequireUser() {
 
 function BootScreen() {
   return (
-    <div className="grid min-h-dvh place-items-center bg-ink-950">
-      <div className="flex flex-col items-center gap-4 text-fg-subtle">
-        <LogoMark className="size-9 animate-pulse" />
-        <span className="eyebrow">Authenticating</span>
+    <div className="grid min-h-dvh place-items-center">
+      <div className="flex flex-col items-center gap-3">
+        <LogoMark className="size-12 animate-wiggle" />
+        <span className="hand text-xl text-ink-3">checking your library card…</span>
       </div>
     </div>
   );
 }
 
 /* ---------------------------------------------------------------------------- */
+const AVATAR_INKS = ["var(--color-yellow)", "var(--color-pink)", "var(--color-blue-soft)", "var(--color-green-soft)", "var(--color-orange-soft)"];
+
 function Initials({ name }) {
   const initials = (name || "?")
     .split(/\s+/)
@@ -50,8 +52,12 @@ function Initials({ name }) {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+  const ink = AVATAR_INKS[(name || "").length % AVATAR_INKS.length];
   return (
-    <span className="grid size-8 place-items-center rounded-full border hairline-strong bg-gradient-to-b from-ink-700 to-ink-800 font-mono text-[11px] font-medium text-fg">
+    <span
+      className="grid size-9 place-items-center rounded-full border-[1.5px] border-ink font-display text-[13px] font-extrabold text-ink shadow-[2px_2px_0_0_var(--color-ink)] transition-transform duration-200 hover:-rotate-6"
+      style={{ background: ink }}
+    >
       {initials}
     </span>
   );
@@ -85,25 +91,36 @@ function UserMenu({ user }) {
     }
     queryClient.clear();
     router.replace("/login");
-    toast("Signed out");
+    toast("Signed out", { description: "See you next issue." });
   };
 
   return (
     <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className="rounded-full">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label={user.name} className="rounded-full">
         <Initials name={user.name} />
       </button>
       {open && (
-        <div role="menu" className="panel-raised absolute right-0 top-11 z-50 w-64 animate-fade-in p-1.5">
-          <div className="px-3 py-2.5">
-            <div className="truncate text-sm font-medium">{user.name}</div>
-            <div className="truncate font-mono text-xs text-fg-subtle">{user.email}</div>
+        <div role="menu" className="paper offset-pink absolute right-0 top-12 z-50 w-64 animate-pop p-1.5" style={{ "--r": "0deg" }}>
+          <div className="px-3 pb-2.5 pt-2">
+            <div className="truncate font-display text-base font-bold tracking-tight">{user.name}</div>
+            <div className="truncate font-mono text-xs text-ink-3">{user.email}</div>
           </div>
-          <div className="my-1 border-t hairline" />
-          <Link href="/dashboard" role="menuitem" onClick={() => setOpen(false)} className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-ink-800 hover:text-fg">
+          <div className="cutline mx-2 my-1" />
+          <Link
+            href="/dashboard"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-2 hover:bg-paper-3 hover:text-ink"
+          >
             <LayoutGrid className="size-4" /> Repositories
           </Link>
-          <button type="button" role="menuitem" onClick={signOut} disabled={busy} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg-muted hover:bg-ink-800 hover:text-fg">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={signOut}
+            disabled={busy}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-2 hover:bg-pink-soft hover:text-ink"
+          >
             {busy ? <Spinner className="size-4" /> : <LogOut className="size-4" />} Sign out
           </button>
         </div>
@@ -156,11 +173,12 @@ function CommandPalette({ open, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-black/60 px-4 pt-[12vh] backdrop-blur-[2px] animate-fade-in" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-ink/30 px-4 pt-[12vh] backdrop-blur-[2px] animate-fade-in" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-label="Command palette"
-        className="panel-raised w-full max-w-xl overflow-hidden"
+        className="paper offset-pink tape tape-pink w-full max-w-xl animate-pop"
+        style={{ "--r": "-0.4deg", "--tape-r": "2deg" }}
         onMouseDown={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
@@ -175,41 +193,66 @@ function CommandPalette({ open, onClose }) {
           if (e.key === "Enter" && items[cursor]) go(items[cursor]);
         }}
       >
-        <div className="flex items-center gap-3 border-b hairline px-4">
-          <Search className="size-4 text-fg-subtle" />
+        <div className="flex items-center gap-3 border-b-2 border-dashed border-ink/25 px-4">
+          <Search className="size-4 text-ink-3" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Jump to a repository or action…"
-            className="h-14 flex-1 bg-transparent text-[15px] outline-none placeholder:text-fg-faint"
+            aria-label="Search repositories and actions"
+            className="h-14 flex-1 bg-transparent font-display text-[17px] font-medium text-ink outline-none placeholder:text-ink-4"
           />
           <span className="kbd">esc</span>
         </div>
         <ul className="scroll-thin max-h-[50vh] overflow-y-auto p-1.5">
-          {items.length === 0 && <li className="px-3 py-8 text-center text-sm text-fg-subtle">No matches for “{query}”.</li>}
+          {items.length === 0 && (
+            <li className="px-3 py-10 text-center">
+              <span className="hand block text-2xl text-ink-3">nothing in the archive for “{query}”</span>
+            </li>
+          )}
           {items.map((item, i) => {
             const Icon = item.icon;
+            const on = i === cursor;
             return (
               <li key={item.id}>
                 <button
                   type="button"
                   onMouseMove={() => setCursor(i)}
                   onClick={() => go(item)}
-                  className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left", i === cursor ? "bg-ink-750" : "")}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                    on ? "bg-yellow-soft" : "",
+                  )}
                 >
-                  <Icon className={cn("size-4 shrink-0", i === cursor ? "text-signal" : "text-fg-subtle")} />
+                  <span
+                    className={cn(
+                      "grid size-8 shrink-0 place-items-center rounded-lg border-[1.5px] transition-colors",
+                      on ? "border-ink bg-pink text-ink" : "border-ink/20 bg-paper text-ink-3",
+                    )}
+                  >
+                    <Icon className="size-4" />
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{item.label}</span>
-                    {item.hint && <span className="block truncate text-xs text-fg-subtle">{item.hint}</span>}
+                    <span className="block truncate text-[15px] font-medium text-ink">{item.label}</span>
+                    {item.project && item.hint && <span className="block truncate text-xs text-ink-3">{item.hint}</span>}
                   </span>
                   {item.project ? <StatusPill status={item.project.status} /> : <span className="eyebrow">{item.hint}</span>}
-                  {i === cursor && <ArrowRight className="size-3.5 text-fg-subtle" />}
+                  {on && <ArrowRight className="size-4 text-ink" />}
                 </button>
               </li>
             );
           })}
         </ul>
+        <div className="flex items-center gap-3 border-t border-dashed border-ink/20 px-4 py-2 font-mono text-[11px] text-ink-3">
+          <span className="flex items-center gap-1">
+            <span className="kbd">↑</span>
+            <span className="kbd">↓</span> move
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="kbd">↵</span> open
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -223,12 +266,14 @@ function IndexingBeacon() {
   return (
     <Link
       href={`/projects/${active[0].id}`}
-      className="hidden items-center gap-2 rounded-full border border-amber/25 bg-amber/5 px-3 py-1 font-mono text-[11px] text-amber md:flex"
+      className="sticker hidden bg-orange-soft text-[12px] md:inline-flex"
+      style={{ "--r": "-2deg" }}
+      title="Open the repository being indexed"
     >
-      <span className="size-1.5 animate-pulse-dot rounded-full bg-amber" />
-      Indexing {active.length === 1 ? `${active[0].repoName}` : `${active.length} repos`}
+      <span className="size-2 animate-pulse-dot rounded-full bg-orange" />
+      Printing {active.length === 1 ? `${active[0].repoName}` : `${active.length} repos`}
       {active.length === 1 && active[0].status === "PROCESSING" && (
-        <span className="tabular-nums text-amber/70">· {overallProgress(active[0])}%</span>
+        <span className="font-mono tabular-nums text-ink-2">· {overallProgress(active[0])}%</span>
       )}
     </Link>
   );
@@ -280,10 +325,10 @@ export function AppShell({ children, fullBleed = false }) {
   if (me.isPending || !me.data) return <BootScreen />;
 
   return (
-    <div className="flex min-h-dvh flex-col bg-ink-950">
-      <header className="sticky top-0 z-40 border-b hairline bg-ink-950/80 backdrop-blur-xl">
-        <div className={cn("mx-auto flex h-14 items-center gap-4 px-4 sm:px-6", fullBleed ? "max-w-none" : "max-w-7xl")}>
-          <Link href="/dashboard" className="shrink-0" aria-label="Zenoryx home">
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur-md">
+        <div className={cn("mx-auto flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6", fullBleed ? "max-w-none" : "max-w-7xl")}>
+          <Link href="/dashboard" className="shrink-0 transition-transform duration-200 hover:-rotate-2" aria-label="Zenoryx home">
             <Logo />
           </Link>
           <div className="flex-1" />
@@ -291,7 +336,7 @@ export function AppShell({ children, fullBleed = false }) {
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="hidden h-8 w-64 items-center gap-2 rounded-lg border hairline-strong bg-ink-900 px-2.5 text-left text-[13px] text-fg-subtle transition-colors hover:border-white/20 hover:text-fg-muted sm:flex"
+            className="hidden h-9 w-64 items-center gap-2 rounded-full border-[1.5px] border-ink/25 bg-paper-2 px-3.5 text-left text-sm text-ink-3 transition-colors hover:border-ink hover:text-ink-2 sm:flex"
           >
             <Search className="size-3.5" />
             <span className="flex-1">Search repositories…</span>
@@ -300,11 +345,16 @@ export function AppShell({ children, fullBleed = false }) {
           <button type="button" onClick={() => setPaletteOpen(true)} className="icon-btn sm:hidden" aria-label="Search">
             <Search className="size-4" />
           </button>
-          <Link href="/projects/new" className="btn btn-primary btn-sm">
-            <Plus className="size-4" />
+          <Link href="/projects/new" className="btn btn-pink btn-sm">
+            <Plus className="size-4" strokeWidth={2.5} />
             <span className="hidden sm:inline">New</span>
           </Link>
           <UserMenu user={me.data} />
+        </div>
+        {/* Cut-along-the-dotted-line rule */}
+        <div className="relative h-0" aria-hidden="true">
+          <div className="cutline mx-4 sm:mx-6" />
+          <Scissors className="absolute -top-[9px] left-1 size-[18px] bg-paper px-0.5 text-ink-3 sm:left-2" />
         </div>
       </header>
       <CompletionNotifier />

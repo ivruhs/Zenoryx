@@ -4,12 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, Check, ExternalLink, RotateCcw, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, GitBranch, RotateCcw, Scissors, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, qk } from "@/lib/api";
 import { STAGES, stageIndex } from "@/lib/pipeline";
 import { cn, duration, formatCount } from "@/lib/format";
-import { langMeta } from "@/lib/languages";
 import { LanguageBar } from "@/components/ui/LanguageBar";
 import { Spinner } from "@/components/ui/Spinner";
 import { StatusPill } from "@/components/ui/StatusPill";
@@ -69,41 +68,45 @@ function StageRow({ stage, index, current, project }) {
   const p = project.progress || {};
   const pct = state === "active" && p.total ? Math.min(100, (p.done / p.total) * 100) : state === "done" ? 100 : 0;
   return (
-    <li className="relative grid grid-cols-[2.25rem_1fr] gap-4 pb-6 last:pb-0">
+    <li className="relative grid grid-cols-[2.5rem_1fr] gap-4 pb-6 last:pb-0">
       {index < STAGES.length - 1 && (
-        <span className={cn("absolute left-[1.0625rem] top-9 h-[calc(100%-2.25rem)] w-px", index < current ? "bg-signal/50" : "bg-[var(--line-strong)]")} />
+        <span
+          className={cn("absolute left-[1.2rem] top-11 h-[calc(100%-2.75rem)] border-l-2 border-dashed", index < current ? "border-green" : "border-ink-4")}
+        />
       )}
       <span
         className={cn(
-          "relative z-10 grid size-9 place-items-center rounded-full border font-mono text-xs transition-colors duration-500",
-          state === "done" && "border-signal/50 bg-signal/10 text-signal",
-          state === "active" && "border-amber/60 bg-amber/10 text-amber shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-amber)_8%,transparent)]",
-          state === "pending" && "border-[var(--line-strong)] bg-ink-900 text-fg-faint",
+          "relative z-10 grid size-10 place-items-center rounded-full border-[1.5px] font-mono text-xs font-bold transition-all duration-500",
+          state === "done" && "-rotate-6 border-ink bg-green text-paper-2",
+          state === "active" && "border-ink bg-yellow text-ink shadow-[3px_3px_0_0_var(--color-ink)]",
+          state === "pending" && "border-ink-4 bg-paper-2 text-ink-4",
         )}
       >
-        {state === "done" ? <Check className="size-4" /> : state === "active" ? <Spinner className="size-4" /> : `0${index + 1}`}
+        {state === "done" ? <Check className="size-4" strokeWidth={3} /> : state === "active" ? <Spinner className="size-4" /> : `0${index + 1}`}
       </span>
-      <div className="min-w-0 pt-1.5">
+      <div className="min-w-0 pt-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <span className={cn("text-sm font-medium", state === "pending" ? "text-fg-subtle" : "text-fg")}>{stage.verb}</span>
-          <span className="font-mono text-[11px] text-fg-subtle">
-            {state === "active" && p.total ? `${p.done}/${p.total}` : stage.hint}
+          <span className={cn("font-display text-[15px] font-semibold", state === "pending" ? "text-ink-4" : "text-ink")}>
+            <span className="mr-2 font-mono text-[11px] font-normal uppercase tracking-wide text-ink-3">{stage.label}</span>
+            {stage.verb}
           </span>
+          <span className="font-mono text-[11px] text-ink-3">{state === "active" && p.total ? `${p.done}/${p.total}` : stage.hint}</span>
         </div>
+        {state === "active" && <div className="hand mt-0.5 -rotate-1 text-lg text-pink-deep">{stage.note}</div>}
         {state !== "pending" && (
-          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-ink-800">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-3">
             <div
-              className={cn("h-full rounded-full transition-[width] duration-700 ease-out", state === "done" ? "bg-signal/60" : "bg-amber")}
+              className={cn("h-full rounded-full transition-[width] duration-700 ease-out", state === "done" ? "bg-green" : "bg-orange")}
               style={{ width: `${state === "active" && !p.total ? 35 : pct}%` }}
-            >
-              {state === "active" && !p.total && <div className="h-full w-full animate-shimmer bg-[linear-gradient(90deg,transparent,rgba(255,255,255,.5),transparent)] bg-[length:200%_100%]" />}
-            </div>
+            />
           </div>
         )}
       </div>
     </li>
   );
 }
+
+const TONES = { signal: "text-green", coral: "text-pink-deep", amber: "text-orange", fg: "text-ink", muted: "text-ink-2" };
 
 export function IngestionConsole({ project }) {
   const router = useRouter();
@@ -125,7 +128,7 @@ export function IngestionConsole({ project }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk.project(project.id) });
       queryClient.invalidateQueries({ queryKey: qk.projects });
-      toast("Retrying ingestion");
+      toast("Back on the press", { description: "Retrying ingestion." });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -141,54 +144,64 @@ export function IngestionConsole({ project }) {
 
   return (
     <main className="relative flex-1 overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-dots fade-mask-b opacity-60" />
       <div className="relative mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
-        <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1.5 text-sm text-fg-subtle hover:text-fg">
-          <ArrowLeft className="size-3.5" /> Repositories
+        <Link href="/dashboard" className="mb-8 inline-flex items-center gap-1.5 font-display text-sm font-semibold text-ink-2 hover:text-ink">
+          <ArrowLeft className="size-4" /> Repositories
         </Link>
 
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
               <StatusPill status={project.status} stage={project.stage} />
               {project.stars != null && (
-                <span className="chip">
-                  <Star className="size-3" /> {formatCount(project.stars)}
+                <span className="sticker bg-yellow" style={{ "--r": "2deg" }}>
+                  <Star className="size-3.5 fill-ink" /> {formatCount(project.stars)}
                 </span>
               )}
-              {project.primaryLanguage && <span className="chip">{project.primaryLanguage}</span>}
+              {project.primaryLanguage && (
+                <span className="sticker bg-blue-soft" style={{ "--r": "-2deg" }}>
+                  {project.primaryLanguage}
+                </span>
+              )}
+              {project.defaultBranch && (
+                <span className="chip">
+                  <GitBranch className="size-3" /> {project.defaultBranch}
+                </span>
+              )}
             </div>
-            <h1 className="truncate text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
-              <span className="text-fg-subtle">{project.repoOwner}/</span>
+            <h1 className="truncate font-display text-4xl font-extrabold tracking-[-0.045em] sm:text-5xl">
+              <span className="text-ink-3">{project.repoOwner}/</span>
               {project.repoName}
             </h1>
-            {project.description && <p className="mt-2 max-w-2xl text-[15px] text-fg-muted">{project.description}</p>}
+            {project.description && <p className="mt-2 max-w-2xl text-[16px] text-ink-2">{project.description}</p>}
           </div>
-          <div className="flex shrink-0 items-center gap-6 font-mono text-xs text-fg-subtle">
+          <div className="flex shrink-0 gap-6 font-mono">
             <div>
               <div className="eyebrow mb-1">Elapsed</div>
-              <div className="text-lg tabular-nums text-fg">{duration(elapsed)}</div>
+              <div className="text-xl font-bold tabular-nums">{duration(elapsed)}</div>
             </div>
             <div>
               <div className="eyebrow mb-1">Files</div>
-              <div className="text-lg tabular-nums text-fg">
+              <div className="text-xl font-bold tabular-nums">
                 {project.fileCount || "—"}
-                {project.totalFiles > project.fileCount && <span className="text-fg-subtle">/{project.totalFiles}</span>}
+                {project.totalFiles > project.fileCount && <span className="text-ink-4">/{project.totalFiles}</span>}
               </div>
             </div>
           </div>
         </div>
 
-        {failed ? (
-          <div className="panel mb-6 border-coral/30 bg-coral/[0.04] p-5 sm:p-6">
-            <div className="flex gap-4">
-              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-coral" />
+        {failed && (
+          <div className="paper offset-pink tape tape-pink mb-8 p-5 sm:p-6" style={{ "--tape-r": "2deg" }}>
+            <div className="flex flex-wrap items-start gap-4">
+              <span className="stamp text-base animate-stamp" style={{ "--stamp": "var(--color-pink-deep)", "--r": "-8deg" }}>
+                Paper jam
+              </span>
               <div className="min-w-0 flex-1">
-                <h2 className="font-medium text-fg">Indexing failed</h2>
-                <p className="mt-1 break-words text-sm text-fg-muted">{project.errorMessage || "An unknown error interrupted the pipeline."}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button type="button" className="btn btn-primary btn-sm" onClick={() => retry.mutate()} disabled={retry.isPending}>
-                    {retry.isPending ? <Spinner /> : <RotateCcw className="size-3.5" />} Retry
+                <h2 className="font-display text-xl font-bold">The press stopped halfway.</h2>
+                <p className="mt-1 break-words text-ink-2">{project.errorMessage || "An unknown error interrupted the pipeline."}</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button type="button" className="btn btn-pink btn-sm" onClick={() => retry.mutate()} disabled={retry.isPending}>
+                    {retry.isPending ? <Spinner /> : <RotateCcw className="size-3.5" />} Try again
                   </button>
                   <button type="button" className="btn btn-danger btn-sm" onClick={() => remove.mutate()} disabled={remove.isPending}>
                     <Trash2 className="size-3.5" /> Delete
@@ -197,17 +210,17 @@ export function IngestionConsole({ project }) {
               </div>
             </div>
           </div>
-        ) : null}
+        )}
 
         <OverallProgress project={project} elapsedMs={elapsed} />
 
-        <div className="grid gap-5 lg:grid-cols-[1.1fr_1fr]">
-          <section className="panel-raised p-5 sm:p-7" aria-label="Pipeline progress">
+        <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+          <section className="paper-soft p-5 sm:p-7" aria-label="Pipeline progress">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="eyebrow">Pipeline</h2>
+              <h2 className="font-display text-lg font-bold">The pipeline</h2>
               {project.status === "PENDING" && (
-                <span className="font-mono text-[11px] text-fg-subtle">
-                  {project.progress?.retryInMs ? "retrying shortly" : project.progress?.queuePosition > 1 ? `#${project.progress.queuePosition} in queue` : "starting…"}
+                <span className="font-mono text-[11px] text-ink-3">
+                  {project.progress?.retryInMs ? "retrying shortly" : project.progress?.queuePosition > 1 ? `#${project.progress.queuePosition} in queue` : "warming up the press…"}
                 </span>
               )}
             </div>
@@ -218,71 +231,57 @@ export function IngestionConsole({ project }) {
             </ol>
           </section>
 
-          <section className="flex min-h-[320px] flex-col overflow-hidden rounded-[14px] border hairline bg-ink-950" aria-label="Activity log">
-            <div className="flex h-10 items-center justify-between border-b hairline px-4">
-              <div className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full bg-ink-700" />
-                <span className="size-2.5 rounded-full bg-ink-700" />
-                <span className="size-2.5 rounded-full bg-ink-700" />
-              </div>
-              <span className="font-mono text-[11px] text-fg-subtle">ingest.log</span>
-              <span className={cn("size-1.5 rounded-full", running ? "animate-pulse-dot bg-amber" : failed ? "bg-coral" : "bg-fg-faint")} />
-            </div>
-            <div ref={logRef} className="scroll-thin flex-1 overflow-y-auto p-4 font-mono text-[12px] leading-6" role="log" aria-live="polite">
-              {lines.map((l) => (
-                <div key={l.key} className="flex gap-3 animate-fade-in">
-                  <span className="shrink-0 text-fg-faint">{l.t.toLocaleTimeString([], { hour12: false })}</span>
-                  <span
-                    className={cn(
-                      "min-w-0 break-words",
-                      l.tone === "signal" && "text-signal",
-                      l.tone === "coral" && "text-coral",
-                      l.tone === "amber" && "text-amber",
-                      l.tone === "fg" && "text-fg",
-                      l.tone === "muted" && "text-fg-muted",
-                    )}
-                  >
-                    {l.text}
-                  </span>
+          {/* receipt-style print log with a torn bottom edge */}
+          <section aria-label="Activity log" className="relative flex min-h-[340px] flex-col">
+            <div className="relative flex flex-1 flex-col bg-paper-2 shadow-[0_14px_30px_-18px_rgba(31,28,23,0.4)] [clip-path:polygon(0_0,100%_0,100%_calc(100%-10px),95%_100%,90%_calc(100%-10px),85%_100%,80%_calc(100%-10px),75%_100%,70%_calc(100%-10px),65%_100%,60%_calc(100%-10px),55%_100%,50%_calc(100%-10px),45%_100%,40%_calc(100%-10px),35%_100%,30%_calc(100%-10px),25%_100%,20%_calc(100%-10px),15%_100%,10%_calc(100%-10px),5%_100%,0_calc(100%-10px))]">
+              <div className="border-b-2 border-dashed border-ink-4 px-5 pb-3 pt-5 text-center">
+                <div className="font-display text-lg font-extrabold tracking-tight">PRINT LOG</div>
+                <div className="font-mono text-[11px] text-ink-3">
+                  {project.repoOwner}/{project.repoName} · job #{project.id.slice(-6)}
                 </div>
-              ))}
-              {!failed && <div className="caret mt-1 text-fg-faint" />}
+              </div>
+              <div ref={logRef} className="scroll-thin flex-1 overflow-y-auto px-5 pb-8 pt-4 font-mono text-[12px] leading-6" role="log" aria-live="polite">
+                {lines.map((l) => (
+                  <div key={l.key} className="flex gap-3 animate-fade-in">
+                    <span className="shrink-0 text-ink-4">{l.t.toLocaleTimeString([], { hour12: false })}</span>
+                    <span className={cn("min-w-0 break-words", TONES[l.tone] || "text-ink-2")}>{l.text}</span>
+                  </div>
+                ))}
+                {!failed && <div className={cn("caret mt-1 text-ink-4", !running && "opacity-60")} />}
+              </div>
             </div>
           </section>
         </div>
 
         {Array.isArray(project.languages) && project.languages.length > 0 && (
-          <div className="panel mt-5 p-5">
+          <div className="paper-soft mt-6 p-5">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="eyebrow">Selected sources</h2>
-              <span className="font-mono text-[11px] text-fg-subtle">{langMeta(project.languages[0].language).label} heavy</span>
+              <h2 className="font-display font-bold">What&apos;s on the press</h2>
+              <Scissors className="size-4 text-ink-3" />
             </div>
             <LanguageBar languages={project.languages} legend max={6} />
           </div>
         )}
 
         {project.status === "PROCESSING" && project.stage === "embedding" && (project.progress?.total || 0) > 60 && (
-          <p className="mt-5 flex items-center gap-2 font-mono text-[11px] text-fg-subtle">
-            <span className="size-1.5 animate-pulse-dot rounded-full bg-cyan" />
-            Embedding is paced to stay inside Gemini&apos;s free quota (~30K tokens/min) — larger repositories take a couple of minutes.
+          <p className="hand mt-5 -rotate-1 text-xl text-ink-2">
+            psst — embedding is paced to stay inside Gemini&apos;s free quota (~30K tokens/min), so bigger repos take a couple of minutes.
           </p>
         )}
 
         {stalled && (
-          <div className="panel mt-5 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-fg-muted">
-              This is taking longer than usual — free-tier APIs may be rate limiting. You can keep waiting or remove the job.
-            </p>
+          <div className="paper-soft mt-6 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-ink-2">This is taking longer than usual — free-tier APIs may be rate limiting. Keep waiting, or cancel the job.</p>
             <button type="button" className="btn btn-danger btn-sm shrink-0" onClick={() => remove.mutate()} disabled={remove.isPending}>
               <Trash2 className="size-3.5" /> Cancel & delete
             </button>
           </div>
         )}
 
-        <p className="mt-8 flex items-center gap-2 text-xs text-fg-subtle">
-          You can leave this page — indexing continues in the background and you&apos;ll be notified when it&apos;s ready.
-          <a href={project.repoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-fg-muted hover:text-fg">
-            GitHub <ExternalLink className="size-3" />
+        <p className="mt-10 flex flex-wrap items-center gap-2 text-sm text-ink-3">
+          Feel free to wander off — indexing keeps going and you&apos;ll get a note when it&apos;s ready.
+          <a href={project.repoUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-blue underline-offset-2 hover:underline">
+            View on GitHub <ExternalLink className="size-3" />
           </a>
         </p>
       </div>

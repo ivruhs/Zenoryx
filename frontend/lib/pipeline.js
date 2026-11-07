@@ -1,10 +1,10 @@
 // Shared description of the ingestion pipeline (mirrors backend stages).
 export const STAGES = [
-  { id: "fetching", label: "Fetch", verb: "Resolving repository & ranking files", hint: "GitHub tree · raw CDN" },
-  { id: "parsing", label: "Parse", verb: "Parsing ASTs with Tree-sitter", hint: "functions · classes · methods" },
-  { id: "summarizing", label: "Summarize", verb: "Summarizing each file’s role", hint: "free model pool" },
-  { id: "embedding", label: "Embed", verb: "Embedding chunks into 3072-d vectors", hint: "batched · pgvector" },
-  { id: "commits", label: "History", verb: "Summarizing recent commits", hint: "diff → plain English" },
+  { id: "fetching", label: "Fetch", verb: "Fetching the repo & ranking files", hint: "GitHub tree · raw CDN", note: "picking the good bits" },
+  { id: "parsing", label: "Cut", verb: "Cutting files at the seams", hint: "Tree-sitter AST", note: "snip snip!" },
+  { id: "summarizing", label: "Annotate", verb: "Annotating what each file does", hint: "free model pool", note: "margin notes" },
+  { id: "embedding", label: "Embed", verb: "Turning chunks into 3072-d vectors", hint: "batched · pgvector", note: "the slow part" },
+  { id: "commits", label: "History", verb: "Reading the recent commits", hint: "diff → plain English", note: "almost there" },
 ];
 
 export function stageIndex(stage) {

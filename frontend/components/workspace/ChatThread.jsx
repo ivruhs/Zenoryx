@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Check, CornerDownLeft, RotateCcw, Square } from "lucide-react";
+import { ArrowUp, Check, CornerDownLeft, RotateCcw, Scissors, Square } from "lucide-react";
 import { LogoMark } from "@/components/ui/Logo";
 import { Markdown } from "@/components/ui/Markdown";
 import { CopyButton } from "@/components/ui/CodeBlock";
@@ -32,75 +32,94 @@ export function toExchanges(messages) {
 }
 
 const PHASES = [
-  { id: "retrieving", label: "Embedding question" },
-  { id: "search", label: "Hybrid vector search" },
-  { id: "generating", label: "Grounding answer" },
+  { id: "retrieving", label: "Embedding your question" },
+  { id: "search", label: "Hunting through the clippings" },
+  { id: "generating", label: "Pasting an answer together" },
 ];
 
 function RetrievalTrace({ phase, sourceCount, firstSourceMs }) {
-  const step = phase === "retrieving" ? 1 : 3;
+  const step = phase === "retrieving" ? 0 : 2;
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 font-mono text-[11px]" aria-live="polite">
+    <ol className="space-y-1.5 font-mono text-[12px]" aria-live="polite">
       {PHASES.map((p, i) => {
-        const done = i < step - (phase === "retrieving" ? 0 : 1) || (phase !== "retrieving" && i < 2);
-        const active = !done && (phase === "retrieving" ? i <= 1 : i === 2);
+        const done = phase === "retrieving" ? false : i < 2;
+        const active = phase === "retrieving" ? i <= 1 : i === step;
         return (
-          <span key={p.id} className={cn("inline-flex items-center gap-1.5", done ? "text-fg-muted" : active ? "text-fg" : "text-fg-faint")}>
-            {done ? <Check className="size-3 text-signal" /> : active ? <Spinner className="size-3 text-amber" /> : <span className="size-1 rounded-full bg-current" />}
+          <li key={p.id} className={cn("flex items-center gap-2", done ? "text-ink-2" : active ? "text-ink" : "text-ink-4")}>
+            {done ? (
+              <Check className="size-3.5 text-green" strokeWidth={3} />
+            ) : active ? (
+              <Spinner className="size-3.5 text-pink-deep" />
+            ) : (
+              <span className="mx-1 size-1.5 rounded-full bg-current" />
+            )}
             {p.label}
             {p.id === "search" && done && sourceCount > 0 && (
-              <span className="text-fg-subtle">
-                · {sourceCount} sources{firstSourceMs ? ` in ${duration(Math.round(firstSourceMs))}` : ""}
+              <span className="text-ink-3">
+                — found {sourceCount}
+                {firstSourceMs ? ` in ${duration(Math.round(firstSourceMs))}` : ""}
               </span>
             )}
-          </span>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }
 
 function SourceChips({ sources, active, onCite }) {
   if (!sources?.length) return null;
   return (
-    <div className="mt-4 flex flex-wrap gap-1.5">
-      {sources.map((s) => (
-        <button
-          key={s.n}
-          type="button"
-          onClick={() => onCite(s.n)}
-          className={cn(
-            "inline-flex h-6 max-w-[16rem] items-center gap-1.5 rounded-md border px-1.5 font-mono text-[11px] transition-colors",
-            active === s.n ? "border-signal/60 bg-signal/10 text-fg" : "hairline-strong bg-ink-900 text-fg-subtle hover:text-fg",
-          )}
-          title={`${s.filePath}${s.startLine ? `:${s.startLine}-${s.endLine}` : ""}`}
-        >
-          <span className={cn(active === s.n ? "text-signal" : "text-fg-muted")}>{s.n}</span>
-          <span className="truncate">{s.filePath.split("/").pop()}</span>
-          {s.startLine && <span className="text-fg-faint">:{s.startLine}</span>}
-        </button>
-      ))}
+    <div className="mt-5 border-t-2 border-dashed border-ink-4 pt-4">
+      <div className="mb-2.5 flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-ink-3">
+        <Scissors className="size-3.5" /> clipped from
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {sources.map((s, i) => (
+          <button
+            key={s.n}
+            type="button"
+            onClick={() => onCite(s.n)}
+            style={{ "--r": `${i % 2 ? 1 : -1}deg` }}
+            className={cn(
+              "inline-flex h-7 max-w-[16rem] rotate-[var(--r)] items-center gap-1.5 rounded-md border-[1.5px] px-2 font-mono text-[11px] transition-[rotate,translate] duration-200 hover:-translate-y-0.5 hover:rotate-0",
+              active === s.n ? "border-ink bg-blue text-paper-2" : "border-ink/70 bg-paper-2 text-ink-2 hover:border-ink",
+            )}
+            title={`${s.filePath}${s.startLine ? `:${s.startLine}-${s.endLine}` : ""}`}
+          >
+            <span className={cn("grid size-4 place-items-center rounded-full text-[10px] font-bold", active === s.n ? "bg-paper-2 text-blue" : "bg-pink text-ink")}>
+              {s.n}
+            </span>
+            <span className="truncate">{s.filePath.split("/").pop()}</span>
+            {s.startLine && <span className="opacity-60">:{s.startLine}</span>}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
 function Exchange({ ex, focused, activeCite, onCite, onRetry, live }) {
   const streaming = live && (ex.phase === "streaming" || ex.phase === "generating");
-  const meta = [
-    ex.sources?.length ? `${ex.sources.length} sources` : null,
-    ex.latencyMs ? duration(ex.latencyMs) : null,
-    ex.model || null,
-  ].filter(Boolean);
+  const meta = [ex.latencyMs ? duration(ex.latencyMs) : null, ex.model || null].filter(Boolean);
 
   return (
     <article className="animate-fade-up">
-      <h3 className="text-[17px] font-medium leading-snug tracking-[-0.01em] text-fg">{ex.question}</h3>
-      <div className={cn("mt-4 rounded-xl border-l-2 pl-4 transition-colors sm:pl-5", focused ? "border-signal/70" : "border-[var(--line-strong)]")}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2 text-xs text-fg-subtle">
-            <LogoMark className="size-4 shrink-0" />
-            <span className="font-medium text-fg-muted">Zenoryx</span>
-            {meta.length > 0 && <span className="truncate font-mono text-[11px]">· {meta.join(" · ")}</span>}
+      <div className="mb-3 flex items-start gap-3">
+        <span className="hand mt-0.5 shrink-0 -rotate-6 text-xl text-pink-deep">you asked</span>
+        <h3 className="font-display text-[19px] font-semibold leading-snug tracking-[-0.015em] text-ink">{ex.question}</h3>
+      </div>
+      <div
+        className={cn(
+          "rounded-2xl border-[1.5px] bg-paper-2 p-5 transition-[border-color,box-shadow] duration-300 sm:p-6",
+          focused ? "border-ink shadow-[5px_5px_0_0_var(--color-blue)]" : "border-[var(--line-strong)]",
+        )}
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <LogoMark className="size-6 shrink-0" />
+            <span className="font-display font-bold">zenoryx</span>
+            {meta.length > 0 && <span className="truncate font-mono text-[11px] text-ink-3">· {meta.join(" · ")}</span>}
           </div>
           {ex.phase === "done" && ex.answer && <CopyButton text={ex.answer} className="-my-1" />}
         </div>
@@ -118,14 +137,14 @@ function Exchange({ ex, focused, activeCite, onCite, onRetry, live }) {
         )}
 
         {ex.phase === "error" && (
-          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-coral/25 bg-coral/[0.05] px-3 py-2.5 text-sm">
-            <span className="text-coral">{ex.error}</span>
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-[1.5px] border-pink-deep bg-pink-soft/60 px-4 py-3 text-sm">
+            <span className="font-medium text-pink-deep">{ex.error}</span>
             <button type="button" className="btn btn-secondary btn-sm ml-auto" onClick={onRetry}>
               <RotateCcw className="size-3.5" /> Retry
             </button>
           </div>
         )}
-        {ex.phase === "stopped" && <p className="mt-3 font-mono text-[11px] text-fg-subtle">— generation stopped</p>}
+        {ex.phase === "stopped" && <p className="hand mt-3 text-lg text-ink-3">— you stopped the press here</p>}
 
         {(ex.phase === "done" || (live && ex.sources?.length > 0)) && <SourceChips sources={ex.sources} active={focused ? activeCite : null} onCite={onCite} />}
       </div>
@@ -150,36 +169,56 @@ function suggestionsFor(project, files) {
   return [...base.slice(0, 4 - symbolQs.length), ...symbolQs];
 }
 
+const CARD_STYLE = [
+  { tape: "", r: "-1.2deg" },
+  { tape: "tape-pink", r: "0.8deg" },
+  { tape: "tape-blue", r: "1deg" },
+  { tape: "", r: "-0.6deg" },
+];
+
 function EmptyState({ project, onAsk }) {
   const { data: files = [] } = useFiles(project.id, true);
   const suggestions = useMemo(() => suggestionsFor(project, files), [project, files]);
   return (
-    <div className="mx-auto flex max-w-3xl flex-col px-1 pt-6 sm:pt-14">
-      <span className="eyebrow mb-4">Indexed · {formatCount(project.chunkCount)} chunks · {project.fileCount} files</span>
-      <h2 className="text-3xl font-semibold leading-[1.05] tracking-[-0.04em] sm:text-[2.6rem]">
-        What do you want to know
-        <br />
-        about <em className="font-serif font-normal italic text-signal">{project.repoName}</em>?
-      </h2>
-      <p className="mt-4 max-w-xl text-[15px] text-fg-muted">
-        Answers are grounded in retrieved code and cite their sources — click any <span className="kbd mx-0.5">1</span> to see the exact lines.
-      </p>
-      <div className="mt-8 grid gap-2.5 sm:grid-cols-2">
-        {suggestions.map((s) => (
-          <button
-            key={s.q}
-            type="button"
-            onClick={() => onAsk(s.q)}
-            className="group rounded-xl border hairline bg-ink-900 p-4 text-left transition-colors hover:border-white/15 hover:bg-ink-850"
-          >
-            <div className={cn("mb-1.5 flex items-center justify-between text-sm font-medium", s.mono && "font-mono")}>
-              <span className="truncate">{s.title}</span>
-              <CornerDownLeft className="size-3.5 shrink-0 text-fg-faint transition-colors group-hover:text-signal" />
-            </div>
-            <p className="line-clamp-2 text-[13px] leading-relaxed text-fg-subtle">{s.q}</p>
-          </button>
-        ))}
+    <div className="mx-auto flex max-w-3xl flex-col px-1 pt-6 sm:pt-12">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <span className="stamp animate-stamp" style={{ "--stamp": "var(--color-green)", "--r": "-5deg" }}>
+          Indexed
+        </span>
+        <span className="font-mono text-xs text-ink-3">
+          {formatCount(project.chunkCount)} clippings from {project.fileCount} files
+        </span>
       </div>
+      <h2 className="font-display text-4xl font-extrabold leading-[1] tracking-[-0.045em] sm:text-[3.4rem]" style={{ fontVariationSettings: '"wdth" 85' }}>
+        What do you want to know about <span className="marker misreg whitespace-nowrap">{project.repoName}</span>?
+      </h2>
+      <p className="mt-4 max-w-xl text-[17px] text-ink-2">
+        Every answer is pasted together from real code — tap a <span className="mx-0.5 inline-grid size-5 -translate-y-px place-items-center rounded-full border-[1.5px] border-ink bg-pink align-middle font-mono text-[10px] font-bold">1</span> sticker to see exactly which lines it came from.
+      </p>
+      <div className="mt-10 grid gap-5 sm:grid-cols-2">
+        {suggestions.map((s, i) => {
+          const st = CARD_STYLE[i % CARD_STYLE.length];
+          return (
+            <button
+              key={s.q}
+              type="button"
+              onClick={() => onAsk(s.q)}
+              style={{ "--r": st.r }}
+              className={cn(
+                "tape ruled group rotate-[var(--r)] rounded-xl border-[1.5px] border-ink bg-paper-2 p-4 pt-5 text-left transition-[rotate,translate,box-shadow] duration-200 hover:-translate-y-1 hover:rotate-0 hover:shadow-[5px_5px_0_0_var(--color-ink)]",
+                st.tape,
+              )}
+            >
+              <div className={cn("mb-1.5 flex items-center justify-between gap-2 font-display text-[15px] font-bold", s.mono && "font-mono text-[14px]")}>
+                <span className="truncate">{s.title}</span>
+                <CornerDownLeft className="size-4 shrink-0 text-ink-4 transition-colors group-hover:text-pink-deep" />
+              </div>
+              <p className="line-clamp-2 text-[13.5px] leading-[32px] text-ink-2">{s.q}</p>
+            </button>
+          );
+        })}
+      </div>
+      <p className="hand mt-8 self-end -rotate-2 text-xl text-ink-3">…or just type below ↓</p>
     </div>
   );
 }
@@ -204,7 +243,7 @@ export function Composer({ onSubmit, onStop, busy, draft, setDraft, inputRef }) 
         e.preventDefault();
         submit();
       }}
-      className="group relative rounded-2xl border hairline-strong bg-ink-900 shadow-[0_-12px_40px_-20px_rgba(0,0,0,0.8)] transition-colors focus-within:border-signal/40"
+      className="group relative rounded-2xl border-[1.5px] border-ink bg-paper-2 shadow-[4px_4px_0_0_var(--color-ink)] transition-shadow focus-within:shadow-[5px_5px_0_0_var(--color-blue)]"
     >
       <label htmlFor="ask" className="sr-only">
         Ask a question about this repository
@@ -222,26 +261,26 @@ export function Composer({ onSubmit, onStop, busy, draft, setDraft, inputRef }) 
             submit();
           }
         }}
-        placeholder="Ask about architecture, a function, a bug…"
-        className="block max-h-[200px] min-h-[52px] w-full resize-none bg-transparent px-4 pb-11 pt-3.5 text-[15px] leading-relaxed outline-none placeholder:text-fg-faint"
+        placeholder="Ask about the architecture, a function, a bug…"
+        className="block max-h-[200px] min-h-[56px] w-full resize-none bg-transparent px-4 pb-12 pt-4 text-[16px] leading-relaxed outline-none placeholder:text-ink-4"
       />
       <div className="absolute inset-x-3 bottom-2.5 flex items-center justify-between">
-        <span className="hidden items-center gap-1.5 text-[11px] text-fg-faint sm:flex">
-          <span className="kbd">↵</span> send <span className="kbd ml-1">⇧↵</span> newline
+        <span className="hidden items-center gap-1.5 text-[11px] text-ink-3 sm:flex">
+          <span className="kbd">↵</span> send <span className="kbd ml-1">⇧↵</span> new line <span className="kbd ml-1">/</span> focus
         </span>
         <span className="flex-1 sm:hidden" />
         {busy ? (
-          <button type="button" onClick={onStop} className="grid size-8 place-items-center rounded-lg bg-ink-700 text-fg hover:bg-ink-600" aria-label="Stop generating">
+          <button type="button" onClick={onStop} className="grid size-9 place-items-center rounded-full border-[1.5px] border-ink bg-ink text-paper-2" aria-label="Stop generating">
             <Square className="size-3 fill-current" />
           </button>
         ) : (
           <button
             type="submit"
             disabled={!draft.trim()}
-            className="grid size-8 place-items-center rounded-lg bg-signal text-signal-ink transition-opacity disabled:bg-ink-700 disabled:text-fg-faint"
+            className="grid size-9 place-items-center rounded-full border-[1.5px] border-ink bg-pink text-ink transition-transform duration-200 hover:-rotate-12 hover:scale-105 disabled:border-ink-4 disabled:bg-paper-3 disabled:text-ink-4"
             aria-label="Send question"
           >
-            <ArrowUp className="size-4" strokeWidth={2.5} />
+            <ArrowUp className="size-4" strokeWidth={2.75} />
           </button>
         )}
       </div>
@@ -282,8 +321,8 @@ export function ChatThread({ project, conversation, focus, onCite, inputRef, dra
         <div className="mx-auto max-w-3xl px-4 pb-10 pt-6 sm:px-8">
           {history.isPending ? (
             <div className="space-y-4 pt-10">
-              <div className="skeleton h-6 w-2/3" />
-              <div className="skeleton h-24 w-full" />
+              <div className="skeleton h-7 w-2/3" />
+              <div className="skeleton h-28 w-full" />
             </div>
           ) : all.length === 0 ? (
             <EmptyState project={project} onAsk={submit} />
@@ -307,7 +346,7 @@ export function ChatThread({ project, conversation, focus, onCite, inputRef, dra
           )}
         </div>
       </div>
-      <div className="relative shrink-0 px-4 pb-4 sm:px-8">
+      <div className="relative shrink-0 px-4 pb-5 pt-1 sm:px-8">
         {showJump && (
           <button
             type="button"
@@ -315,9 +354,10 @@ export function ChatThread({ project, conversation, focus, onCite, inputRef, dra
               stickToBottom.current = true;
               scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
             }}
-            className="chip absolute -top-10 left-1/2 -translate-x-1/2 bg-ink-800 text-fg-muted shadow-lg hover:text-fg"
+            className="sticker absolute -top-10 left-1/2 -translate-x-1/2 bg-yellow"
+            style={{ "--r": "-2deg" }}
           >
-            Jump to latest
+            Jump to latest ↓
           </button>
         )}
         <div className="mx-auto max-w-3xl">

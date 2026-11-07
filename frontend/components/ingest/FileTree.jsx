@@ -59,13 +59,13 @@ function DirNode({ node, depth, openState, toggle, forceOpen }) {
           type="button"
           onClick={() => toggle(node.path, !open)}
           aria-expanded={open}
-          className="flex w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-[13px] text-fg-muted hover:bg-ink-800 hover:text-fg"
+          className="flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-[13px] text-ink-2 hover:bg-paper-3 hover:text-ink"
           style={{ paddingLeft: depth * 14 + 6 }}
         >
-          <ChevronRight className={cn("size-3.5 shrink-0 text-fg-faint transition-transform", open && "rotate-90")} />
-          {open ? <FolderOpen className="size-3.5 shrink-0 text-fg-subtle" /> : <Folder className="size-3.5 shrink-0 text-fg-subtle" />}
-          <span className="min-w-0 flex-1 truncate font-mono text-[12.5px]">{node.name}</span>
-          <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg-faint">
+          <ChevronRight className={cn("size-3.5 shrink-0 text-ink-3 transition-transform", open && "rotate-90")} />
+          {open ? <FolderOpen className="size-4 shrink-0 fill-yellow text-ink" /> : <Folder className="size-4 shrink-0 fill-yellow text-ink" />}
+          <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] font-bold">{node.name}</span>
+          <span className="shrink-0 font-mono text-[11px] tabular-nums text-ink-3">
             {selected}/{total}
           </span>
         </button>
@@ -78,16 +78,18 @@ function DirNode({ node, depth, openState, toggle, forceOpen }) {
           {files.map((f) => (
             <li key={f.path}>
               <div
-                className={cn("flex items-center gap-2 rounded-md py-1 pr-2 text-[12.5px]", f.selected ? "text-fg" : "text-fg-faint")}
+                className={cn("flex items-center gap-2 rounded-lg py-1 pr-2 text-[12.5px]", f.selected ? "text-ink" : "text-ink-4")}
                 style={{ paddingLeft: (node.path ? depth + 1 : depth) * 14 + 26 }}
                 title={f.path}
               >
-                <LangDot language={f.language} className={f.selected ? "" : "opacity-40"} />
-                <span className={cn("min-w-0 flex-1 truncate font-mono", !f.selected && "line-through decoration-fg-faint/50")}>{f.name}</span>
+                <LangDot language={f.language} className={f.selected ? "" : "opacity-35"} />
+                <span className={cn("min-w-0 flex-1 truncate font-mono", !f.selected && "line-through decoration-pink-deep/60 decoration-[1.5px]")}>{f.name}</span>
                 {!f.selected && (
-                  <span className="shrink-0 rounded border hairline px-1 font-mono text-[10px] uppercase tracking-wider text-fg-faint">skipped</span>
+                  <span className="stamp shrink-0 !px-1 !py-0 !text-[9px] !tracking-[0.08em]" style={{ "--stamp": "var(--color-pink-deep)", "--r": "-3deg" }}>
+                    skipped
+                  </span>
                 )}
-                <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-fg-subtle">{formatBytes(f.size)}</span>
+                <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-ink-3">{formatBytes(f.size)}</span>
               </div>
             </li>
           ))}
@@ -110,16 +112,16 @@ export function FileTree({ files = [], className }) {
   const tree = useMemo(() => compact(buildTree(visible)), [visible]);
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border hairline bg-ink-950", className)}>
-      <div className="flex flex-wrap items-center gap-2 border-b hairline bg-ink-900 p-2">
+    <div className={cn("overflow-hidden rounded-xl border-[1.5px] border-ink bg-paper-2", className)}>
+      <div className="flex flex-wrap items-center gap-2 border-b-[1.5px] border-dashed border-ink/25 bg-paper p-2">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Filter files</span>
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-fg-faint" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="Filter files…"
-            className="h-8 w-full rounded-lg border hairline bg-ink-950 pl-8 pr-2 font-mono text-[12.5px] outline-none placeholder:text-fg-faint focus:border-signal/40"
+            className="h-9 w-full rounded-full border-[1.5px] border-ink/25 bg-paper-2 pl-8 pr-3 font-mono text-[12.5px] text-ink outline-none placeholder:text-ink-4 focus:border-blue"
           />
         </label>
         {skippedCount > 0 && (
@@ -128,10 +130,10 @@ export function FileTree({ files = [], className }) {
             role="switch"
             aria-checked={showSkipped}
             onClick={() => setShowSkipped((s) => !s)}
-            className="flex h-8 items-center gap-2 rounded-lg px-2.5 text-xs text-fg-muted hover:bg-ink-800 hover:text-fg"
+            className="flex h-9 items-center gap-2 rounded-full px-3 text-xs text-ink-2 hover:bg-paper-3 hover:text-ink"
           >
-            <span className={cn("relative h-4 w-7 rounded-full transition-colors", showSkipped ? "bg-signal/80" : "bg-ink-700")}>
-              <span className={cn("absolute top-0.5 size-3 rounded-full bg-ink-950 transition-[left]", showSkipped ? "left-3.5" : "left-0.5")} />
+            <span className={cn("relative h-[18px] w-8 rounded-full border-[1.5px] border-ink transition-colors", showSkipped ? "bg-pink" : "bg-paper-3")}>
+              <span className={cn("absolute top-[1.5px] size-3 rounded-full border border-ink bg-paper-2 transition-[left] duration-200", showSkipped ? "left-[15px]" : "left-[1.5px]")} />
             </span>
             Show skipped ({skippedCount})
           </button>
@@ -139,7 +141,7 @@ export function FileTree({ files = [], className }) {
       </div>
       <div className="scroll-thin max-h-[360px] overflow-y-auto p-1.5">
         {visible.length === 0 ? (
-          <p className="px-3 py-8 text-center text-sm text-fg-subtle">No files match “{filter}”.</p>
+          <p className="hand px-3 py-8 text-center text-xl text-ink-3">no files match “{filter}”</p>
         ) : (
           <ul>
             <DirNode node={tree} depth={0} openState={openState} toggle={(path, open) => setOpenState((s) => ({ ...s, [path]: open }))} forceOpen={Boolean(filter.trim())} />

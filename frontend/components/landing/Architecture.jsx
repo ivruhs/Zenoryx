@@ -1,24 +1,21 @@
-/* Hand-built system diagram. Crisp at any size; scrolls horizontally inside its
-   own container on small screens rather than shrinking into illegibility. */
+// Hand-assembled architecture diagram: printed boxes with off-register shadows,
+// masking tape, and marching dashed flow lines on graph paper.
 
-const MONO = "var(--font-mono)";
-const SANS = "var(--font-sans)";
+const DISPLAY = { fontFamily: "var(--font-display)" };
+const MONO = { fontFamily: "var(--font-mono)" };
 
-function Node({ x, y, w, h, title, sub, accent = false, tag }) {
+function Node({ x, y, w, h, title, sub, fill, shadow = "var(--color-ink)", tape = "var(--color-yellow)", tilt = 0 }) {
+  const cx = x + w / 2;
   return (
-    <g>
-      <rect x={x} y={y} width={w} height={h} rx="12" fill="#0d0d10" stroke={accent ? "rgba(200,245,66,0.55)" : "rgba(255,255,255,0.13)"} />
-      <rect x={x + 0.5} y={y + 0.5} width={w - 1} height="1" fill="rgba(255,255,255,0.05)" />
-      {tag && (
-        <text x={x + 16} y={y + 24} fill="#6e6e7a" fontFamily={MONO} fontSize="9.5" letterSpacing="1.4">
-          {tag}
-        </text>
-      )}
-      <text x={x + 16} y={y + (tag ? 46 : 34)} fill="#ededf0" fontFamily={SANS} fontSize="15" fontWeight="600" letterSpacing="-0.2">
+    <g transform={`rotate(${tilt} ${cx} ${y + h / 2})`}>
+      <rect x={x + 6} y={y + 6} width={w} height={h} rx="14" fill={shadow} />
+      <rect x={x} y={y} width={w} height={h} rx="14" fill={fill} stroke="var(--color-ink)" strokeWidth="2.2" />
+      <rect x={cx - 26} y={y - 8} width="52" height="15" fill={tape} opacity=".75" transform={`rotate(-4 ${cx} ${y})`} />
+      <text x={x + 18} y={y + 38} fontSize="21" fontWeight="800" fill="var(--color-ink)" style={DISPLAY}>
         {title}
       </text>
       {sub.map((line, i) => (
-        <text key={line} x={x + 16} y={y + (tag ? 66 : 54) + i * 16} fill="#a3a3ad" fontFamily={MONO} fontSize="10.5">
+        <text key={line} x={x + 18} y={y + 62 + i * 18} fontSize="12.5" fill="var(--color-ink-2)" style={MONO}>
           {line}
         </text>
       ))}
@@ -26,22 +23,31 @@ function Node({ x, y, w, h, title, sub, accent = false, tag }) {
   );
 }
 
-function Flow({ d, label, lx, ly, color = "#c8f542", dashed = false, anchor = "middle" }) {
+function Flow({ d, label, lx, ly, color = "var(--color-ink)", anchor = "middle" }) {
   return (
     <g>
-      <path d={d} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
       <path
         d={d}
         fill="none"
         stroke={color}
-        strokeOpacity={dashed ? 0.55 : 0.8}
-        strokeWidth="1.5"
-        strokeDasharray={dashed ? "3 5" : "4 8"}
+        strokeWidth="2.2"
+        strokeDasharray="7 5"
         strokeLinecap="round"
-        style={{ animation: `dash ${dashed ? 2.4 : 1.2}s linear infinite` }}
+        markerEnd="url(#arrow)"
+        style={{ animation: "dash 1.1s linear infinite" }}
       />
       {label && (
-        <text x={lx} y={ly} fill="#6e6e7a" fontFamily={MONO} fontSize="9.5" textAnchor={anchor}>
+        <text
+          x={lx}
+          y={ly}
+          textAnchor={anchor}
+          fontSize="12"
+          fill="var(--color-ink)"
+          stroke="var(--color-paper-2)"
+          strokeWidth="5"
+          paintOrder="stroke"
+          style={MONO}
+        >
           {label}
         </text>
       )}
@@ -51,47 +57,60 @@ function Flow({ d, label, lx, ly, color = "#c8f542", dashed = false, anchor = "m
 
 export function Architecture() {
   return (
-    <div className="panel overflow-hidden">
+    <div className="paper graph-paper relative overflow-hidden p-2 sm:p-4">
+      <p className="hand absolute right-4 top-3 z-10 text-lg text-pink-deep sm:hidden" aria-hidden="true">
+        scroll →
+      </p>
       <div className="scroll-thin overflow-x-auto">
-        <svg viewBox="0 0 1000 480" className="block w-full min-w-[860px]" role="img" aria-labelledby="arch-title arch-desc">
-          <title id="arch-title">Zenoryx system architecture</title>
+        <svg
+          viewBox="0 0 960 560"
+          className="h-auto w-full min-w-[760px]"
+          role="img"
+          aria-labelledby="arch-title arch-desc"
+        >
+          <title id="arch-title">Zenoryx architecture</title>
           <desc id="arch-desc">
-            The browser talks to a Next.js app that proxies /api to an Express API. The API process contains the HTTP layer and a
-            durable ingestion runner; both use Postgres with pgvector. The runner fetches code from GitHub and calls a quota-aware pool of free Gemini and Groq models.
+            The Next.js frontend proxies /api to an Express API. The same Node process runs a durable ingestion runner.
+            Both use Postgres with pgvector, which also stores the job queue. The runner reads code from GitHub and calls a
+            quota-aware pool of free Gemini and Groq models.
           </desc>
           <defs>
-            <pattern id="arch-dots" width="20" height="20" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" r="1" fill="rgba(255,255,255,0.05)" />
-            </pattern>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M1 1 L9 5 L1 9" fill="none" stroke="var(--color-ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </marker>
           </defs>
-          <rect width="1000" height="480" fill="url(#arch-dots)" />
 
-          {/* API process boundary */}
-          <rect x="262" y="34" width="300" height="300" rx="16" fill="none" stroke="rgba(255,255,255,0.14)" strokeDasharray="4 5" />
-          <text x="278" y="56" fill="#6e6e7a" fontFamily={MONO} fontSize="9.5" letterSpacing="1.4">
-            NODE PROCESS · RENDER
+          {/* one Node process */}
+          <rect x="300" y="52" width="300" height="324" rx="22" fill="none" stroke="var(--color-ink)" strokeWidth="2" strokeDasharray="10 7" />
+          <g transform="rotate(-3 380 52)">
+            <rect x="316" y="38" width="180" height="26" rx="4" fill="var(--color-yellow)" stroke="var(--color-ink)" strokeWidth="1.5" />
+            <text x="406" y="56" textAnchor="middle" fontSize="12" fontWeight="700" fill="var(--color-ink)" style={MONO}>
+              ONE NODE PROCESS
+            </text>
+          </g>
+
+          <Node x={40} y={196} w={210} h={120} title="Next.js 15" sub={["App Router", "SSE reader · RQ cache"]} fill="var(--color-yellow-soft)" shadow="var(--color-blue)" tilt={-1.5} />
+          <Node x={330} y={96} w={240} h={104} title="Express API" sub={["auth · rate limits", "RAG + SSE streaming"]} fill="var(--color-paper-2)" shadow="var(--color-pink)" />
+          <Node x={330} y={246} w={240} h={104} title="Ingestion runner" sub={["durable · retries", "crash recovery on boot"]} fill="var(--color-pink-soft)" tape="var(--color-blue-soft)" />
+          <Node x={330} y={434} w={240} h={100} title="Postgres + pgvector" sub={["vectors · sessions", "and the job queue"]} fill="var(--color-blue-soft)" shadow="var(--color-ink)" tilt={1} />
+          <Node x={690} y={52} w={230} h={100} title="GitHub" sub={["REST: tree + metadata", "raw CDN: file contents"]} fill="var(--color-paper-2)" tilt={1.5} />
+          <Node x={690} y={208} w={230} h={100} title="Gemini" sub={["embedding-001 · 3072-d", "Flash-Lite pool"]} fill="var(--color-green-soft)" tape="var(--color-pink)" />
+          <Node x={690} y={364} w={230} h={100} title="Groq" sub={["gpt-oss-120b · 20b", "qwen3 · token buckets"]} fill="var(--color-orange-soft)" tilt={-1.2} />
+
+          {/* model pool brace + note */}
+          <path d="M934 214 q16 0 16 22 v190 q0 22 -16 22" fill="none" stroke="var(--color-pink-deep)" strokeWidth="2.4" strokeLinecap="round" />
+          <text x="902" y="498" textAnchor="end" fontSize="24" fill="var(--color-pink-deep)" style={{ fontFamily: "var(--font-hand)", fontWeight: 700 }} transform="rotate(-3 902 498)">
+            7 free models, one gateway
           </text>
 
-          {/* Flows (drawn first, under nodes) */}
-          <Flow d="M 202 228 C 240 228, 240 128, 280 128" label="same-origin /api" lx="236" ly="168" />
-          <Flow d="M 540 116 C 600 116, 600 222, 660 222" label="stream answer" lx="600" ly="150" color="#5ee3ef" />
-          <Flow d="M 540 268 C 600 268, 600 100, 660 100" label="tree · raw CDN" lx="616" ly="196" anchor="start" />
-          <Flow d="M 540 290 C 610 290, 610 238, 660 238" label="embed · summarize" lx="604" ly="300" color="#5ee3ef" anchor="start" />
-          <Flow d="M 810 262 L 810 318" label="429 → reroute" lx="822" ly="295" color="#ffb547" dashed anchor="start" />
-          <Flow d="M 302 166 L 302 392" label="" />
-          <Flow d="M 440 316 L 440 392" label="claim · upsert" lx="452" ly="362" anchor="start" />
-          <text x="314" y="362" fill="#6e6e7a" fontFamily={MONO} fontSize="9.5">
-            cosine &lt;=&gt;
-          </text>
-
-          {/* Nodes */}
-          <Node x={20} y={178} w={182} h={100} tag="CLIENT" title="Next.js 15" sub={["App Router · React 19", "SSE reader · RQ cache"]} />
-          <Node x={280} y={72} w={260} h={94} title="Express API" sub={["sessions · rate limits", "RAG + SSE streaming"]} accent />
-          <Node x={330} y={222} w={210} h={94} title="Ingestion runner" sub={["durable · retries", "crash recovery on boot"]} />
-          <Node x={262} y={392} w={300} h={72} title="Postgres + pgvector" sub={["vectors · sessions · job state"]} accent />
-          <Node x={660} y={54} w={300} h={92} tag="EXTERNAL" title="GitHub" sub={["REST API (metadata, tree)", "raw CDN (file contents)"]} />
-          <Node x={660} y={180} w={300} h={82} title="Gemini" sub={["embedding-001 · 3072-d", "Flash-Lite pool · Q&A"]} />
-          <Node x={660} y={318} w={300} h={82} title="Groq" sub={["gpt-oss-120b · 20b · qwen", "token-bucket pool"]} />
+          <Flow d="M252 236 C 292 230, 296 140, 326 132" label="/api · same-origin" lx="292" ly="122" anchor="end" />
+          <Flow d="M450 202 L 450 242" label="enqueue" lx="458" ly="226" anchor="start" />
+          <Flow d="M330 178 C 266 222, 262 430, 326 482" label="cosine + identifiers" lx="256" ly="402" anchor="end" color="var(--color-blue)" />
+          <Flow d="M450 352 L 450 428" label="upsert vectors" lx="458" ly="396" anchor="start" />
+          <Flow d="M574 116 C 625 116, 642 100, 686 100" label="scan · validate" lx="630" ly="88" />
+          <Flow d="M574 168 C 632 168, 648 236, 686 240" label="ask · stream" lx="596" ly="200" anchor="start" color="var(--color-pink-deep)" />
+          <Flow d="M574 282 C 626 282, 650 266, 686 266" label="embed" lx="628" ly="300" />
+          <Flow d="M574 324 C 628 324, 652 404, 686 410" label="annotate · history" lx="640" ly="384" />
         </svg>
       </div>
     </div>

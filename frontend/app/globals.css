@@ -1,136 +1,124 @@
 @import "tailwindcss";
 
 /* =============================================================================
-   ZENORYX DESIGN SYSTEM — "instrument" aesthetic
-   Ink surfaces, hairlines, one signal accent. Colour is reserved for meaning:
-   lime = action/live, cyan = vectors, amber = in-progress, coral = failure.
+   ZENORYX — "CUT & PASTE" DESIGN SYSTEM
+   A risograph zine for code. Newsprint paper, spot inks, scissors, tape,
+   rubber stamps and marker swipes. Zenoryx cuts code at its seams (functions,
+   classes) and pastes the pieces back together as answers — the UI says so.
    ============================================================================= */
 
 @theme {
-  --color-ink-950: #08080a;
-  --color-ink-900: #0d0d10;
-  --color-ink-850: #121216;
-  --color-ink-800: #18181d;
-  --color-ink-750: #1e1e24;
-  --color-ink-700: #27272f;
-  --color-ink-600: #34343d;
+  /* paper */
+  --color-paper: #f2ede3;          /* newsprint page */
+  --color-paper-2: #fbf9f4;        /* white card stock */
+  --color-paper-3: #e8e1d3;        /* sunken / hover */
+  --color-paper-4: #d9cfbd;        /* strong rule */
 
-  --color-fg: #ededf0;
-  --color-fg-muted: #a3a3ad;
-  --color-fg-subtle: #6e6e7a;
-  --color-fg-faint: #4a4a54;
+  /* ink */
+  --color-ink: #1f1c17;
+  --color-ink-2: #4a453c;
+  --color-ink-3: #7a7366;
+  --color-ink-4: #a69e8f;
 
-  --color-signal: #c8f542;
-  --color-signal-strong: #d9ff5c;
-  --color-signal-ink: #0b0d02;
-  --color-cyan: #5ee3ef;
-  --color-amber: #ffb547;
-  --color-coral: #ff6b5b;
-  --color-violet: #b69cff;
+  /* riso spot inks */
+  --color-pink: #ff4fa0;
+  --color-pink-deep: #d42a7c;
+  --color-pink-soft: #ffd7ea;
+  --color-blue: #2b59c3;
+  --color-blue-soft: #d7e1fb;
+  --color-yellow: #ffe14a;
+  --color-yellow-soft: #fff3b0;
+  --color-green: #00a46c;
+  --color-green-soft: #cdeedd;
+  --color-orange: #ff6b2c;
+  --color-orange-soft: #ffdcc9;
 
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --font-serif: var(--font-instrument), ui-serif, Georgia, serif;
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, Menlo, monospace;
+  --font-hand: var(--font-caveat), "Comic Sans MS", cursive;
 
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --animate-fade-up: fade-up 0.6s var(--ease-out-expo) both;
-  --animate-fade-in: fade-in 0.4s ease both;
+  --animate-fade-up: fade-up 0.55s var(--ease-out-expo) both;
+  --animate-fade-in: fade-in 0.35s ease both;
+  --animate-pop: pop 0.45s var(--ease-spring) both;
+  --animate-stamp: stamp 0.5s var(--ease-spring) both;
+  --animate-wiggle: wiggle 2.4s ease-in-out infinite;
   --animate-blink: blink 1.05s steps(1) infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-pulse-dot: pulse-dot 1.6s ease-in-out infinite;
-  --animate-spin-slow: spin 2.4s linear infinite;
+  --animate-march: march 0.9s linear infinite;
+  --animate-roll: roll 1.2s linear infinite;
+  --animate-float: float 5s ease-in-out infinite;
 }
 
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+@keyframes fade-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { 0% { opacity: 0; transform: scale(0.85) rotate(var(--r, 0deg)); } 100% { opacity: 1; transform: scale(1) rotate(var(--r, 0deg)); } }
+@keyframes stamp {
+  0% { opacity: 0; transform: scale(1.8) rotate(var(--r, -6deg)); }
+  60% { opacity: 1; transform: scale(0.94) rotate(var(--r, -6deg)); }
+  100% { opacity: 1; transform: scale(1) rotate(var(--r, -6deg)); }
 }
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  50.01%, 100% { opacity: 0; }
-}
-@keyframes shimmer {
-  from { background-position: -200% 0; }
-  to { background-position: 200% 0; }
-}
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.35; transform: scale(0.8); }
-}
-@keyframes scan {
-  0% { transform: translateY(-10%); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(110%); opacity: 0; }
-}
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-@keyframes dash {
-  to { stroke-dashoffset: -24; }
-}
+@keyframes wiggle { 0%, 100% { transform: rotate(var(--r, -2deg)); } 50% { transform: rotate(calc(var(--r, -2deg) * -1)); } }
+@keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.75); } }
+@keyframes march { to { background-position: 24px 0; } }
+@keyframes roll { to { background-position: 0 -40px; } }
+@keyframes float { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-6px) rotate(var(--r, 0deg)); } }
+@keyframes scan { 0% { transform: translateY(-10%); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110%); opacity: 0; } }
+@keyframes dash { to { stroke-dashoffset: -24; } }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes snip { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-18deg); } }
 
 /* ---------------------------------------------------------------------------- */
 @layer base {
   :root {
-    color-scheme: dark;
-    --line: rgba(255, 255, 255, 0.075);
-    --line-strong: rgba(255, 255, 255, 0.13);
+    color-scheme: light;
+    --line: rgba(31, 28, 23, 0.12);
+    --line-strong: rgba(31, 28, 23, 0.22);
+    /* paper grain, multiplied over every surface */
+    --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.10 0 0 0 0 0.08 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.35'/></svg>");
   }
 
   html {
-    background: var(--color-ink-950);
+    background: var(--color-paper);
     -webkit-text-size-adjust: 100%;
     scrollbar-gutter: stable;
   }
 
   body {
-    background: var(--color-ink-950);
-    color: var(--color-fg);
+    background-color: var(--color-paper);
+    background-image: var(--grain);
+    color: var(--color-ink);
     font-family: var(--font-sans);
-    font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  ::selection {
-    background: color-mix(in oklab, var(--color-signal) 30%, transparent);
-    color: var(--color-fg);
-  }
+  h1, h2, h3, h4 { font-family: var(--font-display); }
+
+  ::selection { background: var(--color-pink); color: var(--color-ink); }
 
   :focus-visible {
-    outline: 2px solid var(--color-signal);
+    outline: 2.5px solid var(--color-blue);
     outline-offset: 2px;
-    border-radius: 6px;
+    border-radius: 8px;
   }
 
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-ink-600) transparent;
-  }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-paper-4) transparent; }
 
-  button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]) {
-    cursor: pointer;
-  }
-
-  code, kbd, pre, samp {
-    font-family: var(--font-mono);
-  }
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+  code, kbd, pre, samp { font-family: var(--font-mono); }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.001ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.001ms !important;
-      scroll-behavior: auto !important;
     }
   }
 }
@@ -140,173 +128,238 @@
   .hairline { border-color: var(--line); }
   .hairline-strong { border-color: var(--line-strong); }
 
-  .panel {
-    background: var(--color-ink-900);
-    border: 1px solid var(--line);
+  /* Card stock: white paper with a crisp ink edge and a soft drop. */
+  .paper {
+    background: var(--color-paper-2);
+    border: 1.5px solid var(--color-ink);
+    border-radius: 16px;
+    box-shadow: 0 1px 0 rgba(31, 28, 23, 0.06), 0 14px 30px -18px rgba(31, 28, 23, 0.35);
+  }
+  /* Quieter card: hairline edge, used for dense UI. */
+  .paper-soft {
+    background: var(--color-paper-2);
+    border: 1px solid var(--line-strong);
     border-radius: 14px;
   }
-  .panel-raised {
-    background: linear-gradient(180deg, var(--color-ink-850), var(--color-ink-900));
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 24px 48px -24px rgba(0, 0, 0, 0.6);
+  /* Riso "print offset": a solid spot-colour shadow that sits slightly off-register. */
+  .offset-pink { box-shadow: 5px 5px 0 0 var(--color-pink); }
+  .offset-blue { box-shadow: 5px 5px 0 0 var(--color-blue); }
+  .offset-yellow { box-shadow: 5px 5px 0 0 var(--color-yellow); }
+  .offset-ink { box-shadow: 4px 4px 0 0 var(--color-ink); }
+
+  /* Masking tape — add to a relatively-positioned element. */
+  .tape { position: relative; }
+  .tape::before {
+    content: "";
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    width: 88px;
+    height: 22px;
+    transform: translateX(-50%) rotate(var(--tape-r, -3deg));
+    background: color-mix(in oklab, var(--tape, var(--color-yellow)) 70%, transparent);
+    border-left: 2px dotted rgba(255, 255, 255, 0.5);
+    border-right: 2px dotted rgba(255, 255, 255, 0.5);
+    box-shadow: 0 1px 2px rgba(31, 28, 23, 0.15);
+    z-index: 2;
+  }
+  .tape-pink { --tape: var(--color-pink); }
+  .tape-blue { --tape: var(--color-blue-soft); }
+
+  /* Scissor cut line — dashed rule; pair with <Scissors/> icon. */
+  .cutline {
+    border-top: 2px dashed var(--color-ink-3);
+  }
+  .cutline-v { border-left: 2px dashed var(--color-ink-3); }
+
+  /* Marker highlighter swipe behind inline text. */
+  .marker {
+    background-image: linear-gradient(100deg, transparent 0.6%, var(--mk, var(--color-yellow)) 2.5%, var(--mk, var(--color-yellow)) 96%, transparent 98.5%);
+    background-size: 100% 62%;
+    background-position: 0 78%;
+    background-repeat: no-repeat;
+    padding: 0 0.12em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+  .marker-pink { --mk: var(--color-pink-soft); }
+  .marker-blue { --mk: var(--color-blue-soft); }
+  .marker-green { --mk: var(--color-green-soft); }
+
+  /* Riso misregistration on big type. */
+  .misreg {
+    text-shadow:
+      0.035em 0.028em 0 color-mix(in oklab, var(--color-pink) 85%, transparent),
+      -0.022em -0.015em 0 color-mix(in oklab, var(--color-blue) 45%, transparent);
   }
 
-  /* Buttons ------------------------------------------------------------------ */
+  /* Halftone dot fields */
+  .halftone {
+    background-image: radial-gradient(var(--ht, var(--color-pink)) 28%, transparent 30%);
+    background-size: 9px 9px;
+  }
+  .halftone-fade { mask-image: radial-gradient(closest-side, black, transparent); }
+
+  .ruled {
+    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, rgba(43, 89, 195, 0.12) 31px 32px);
+  }
+  .graph-paper {
+    background-image:
+      linear-gradient(to right, rgba(43, 89, 195, 0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(43, 89, 195, 0.08) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Buttons -------------------------------------------------------------- */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    height: 2.5rem;
-    padding: 0 1rem;
-    border-radius: 10px;
-    font-size: 0.875rem;
-    font-weight: 500;
+    height: 2.75rem;
+    padding: 0 1.15rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 650;
     letter-spacing: -0.01em;
     white-space: nowrap;
-    transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s;
     user-select: none;
+    transition: transform 0.18s var(--ease-spring), box-shadow 0.18s var(--ease-spring), background-color 0.15s, color 0.15s;
   }
-  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:hover:not(:disabled) { transform: translate(-2px, -2px); }
+  .btn:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 0 0 0 0 transparent; }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-sm { height: 2rem; padding: 0 0.75rem; font-size: 0.8125rem; border-radius: 8px; }
-  .btn-lg { height: 3rem; padding: 0 1.4rem; font-size: 0.9375rem; border-radius: 12px; }
+  .btn-sm { height: 2.1rem; padding: 0 0.85rem; font-size: 0.85rem; }
+  .btn-lg { height: 3.4rem; padding: 0 1.6rem; font-size: 1.05rem; }
 
-  .btn-primary {
-    background: var(--color-signal);
-    color: var(--color-signal-ink);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2) inset, 0 8px 24px -12px color-mix(in oklab, var(--color-signal) 60%, transparent);
-  }
-  .btn-primary:hover:not(:disabled) { background: var(--color-signal-strong); }
-
-  .btn-secondary {
-    background: var(--color-ink-800);
-    color: var(--color-fg);
-    border: 1px solid var(--line-strong);
-  }
-  .btn-secondary:hover:not(:disabled) { background: var(--color-ink-750); border-color: rgba(255, 255, 255, 0.2); }
-
-  .btn-ghost { color: var(--color-fg-muted); }
-  .btn-ghost:hover:not(:disabled) { color: var(--color-fg); background: var(--color-ink-800); }
-
-  .btn-danger {
-    background: color-mix(in oklab, var(--color-coral) 12%, transparent);
-    color: var(--color-coral);
-    border: 1px solid color-mix(in oklab, var(--color-coral) 30%, transparent);
-  }
-  .btn-danger:hover:not(:disabled) { background: color-mix(in oklab, var(--color-coral) 20%, transparent); }
+  .btn-primary { background: var(--color-ink); color: var(--color-paper-2); box-shadow: 3px 3px 0 0 var(--color-pink); }
+  .btn-primary:hover:not(:disabled) { box-shadow: 5px 5px 0 0 var(--color-pink); }
+  .btn-pink { background: var(--color-pink); color: var(--color-ink); box-shadow: 3px 3px 0 0 var(--color-ink); }
+  .btn-pink:hover:not(:disabled) { box-shadow: 5px 5px 0 0 var(--color-ink); }
+  .btn-yellow { background: var(--color-yellow); color: var(--color-ink); box-shadow: 3px 3px 0 0 var(--color-ink); }
+  .btn-yellow:hover:not(:disabled) { box-shadow: 5px 5px 0 0 var(--color-ink); }
+  .btn-secondary { background: var(--color-paper-2); color: var(--color-ink); box-shadow: 3px 3px 0 0 var(--color-ink); }
+  .btn-secondary:hover:not(:disabled) { box-shadow: 5px 5px 0 0 var(--color-ink); }
+  .btn-ghost { border-color: transparent; color: var(--color-ink-2); }
+  .btn-ghost:hover:not(:disabled) { background: var(--color-paper-3); transform: none; }
+  .btn-danger { background: var(--color-paper-2); color: var(--color-pink-deep); border-color: var(--color-pink-deep); box-shadow: 3px 3px 0 0 var(--color-pink-soft); }
 
   .icon-btn {
     display: inline-grid;
     place-items: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 8px;
-    color: var(--color-fg-subtle);
-    transition: color 0.15s, background-color 0.15s;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    color: var(--color-ink-2);
+    transition: background-color 0.15s, color 0.15s, transform 0.2s var(--ease-spring);
   }
-  .icon-btn:hover:not(:disabled) { color: var(--color-fg); background: var(--color-ink-800); }
+  .icon-btn:hover:not(:disabled) { background: var(--color-paper-3); color: var(--color-ink); transform: rotate(-6deg); }
 
-  /* Inputs ------------------------------------------------------------------- */
+  /* Inputs ------------------------------------------------------------- */
   .field {
     width: 100%;
-    height: 2.75rem;
-    padding: 0 0.875rem;
-    background: var(--color-ink-950);
-    border: 1px solid var(--line-strong);
-    border-radius: 10px;
-    color: var(--color-fg);
-    font-size: 0.9375rem;
-    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+    height: 3rem;
+    padding: 0 1rem;
+    background: var(--color-paper-2);
+    border: 1.5px solid var(--color-ink);
+    border-radius: 12px;
+    color: var(--color-ink);
+    font-size: 1rem;
+    transition: box-shadow 0.18s var(--ease-spring), transform 0.18s var(--ease-spring);
   }
-  .field::placeholder { color: var(--color-fg-faint); }
-  .field:hover { border-color: rgba(255, 255, 255, 0.2); }
-  .field:focus {
-    outline: none;
-    border-color: color-mix(in oklab, var(--color-signal) 70%, transparent);
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-signal) 12%, transparent);
-  }
-  .field[aria-invalid="true"] {
-    border-color: color-mix(in oklab, var(--color-coral) 70%, transparent);
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-coral) 10%, transparent);
-  }
+  .field::placeholder { color: var(--color-ink-4); }
+  .field:focus { outline: none; box-shadow: 4px 4px 0 0 var(--color-blue); transform: translate(-1px, -1px); }
+  .field[aria-invalid="true"] { border-color: var(--color-pink-deep); box-shadow: 4px 4px 0 0 var(--color-pink-soft); }
 
-  .label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--color-fg-muted);
-  }
+  .label { display: block; margin-bottom: 0.4rem; font-family: var(--font-display); font-size: 0.9rem; font-weight: 600; color: var(--color-ink); }
 
   .kbd {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.25rem;
-    height: 1.25rem;
-    padding: 0 0.3rem;
-    border-radius: 5px;
-    border: 1px solid var(--line-strong);
-    border-bottom-width: 2px;
-    background: var(--color-ink-800);
-    color: var(--color-fg-subtle);
+    min-width: 1.4rem;
+    height: 1.4rem;
+    padding: 0 0.35rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-ink-3);
+    border-bottom-width: 2.5px;
+    background: var(--color-paper-2);
+    color: var(--color-ink-2);
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
+    font-size: 0.68rem;
     line-height: 1;
   }
 
   .eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    letter-spacing: 0.14em;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-fg-subtle);
+    color: var(--color-ink-3);
   }
+
+  .hand { font-family: var(--font-hand); font-weight: 600; line-height: 1.05; }
 
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.375rem;
-    height: 1.5rem;
-    padding: 0 0.5rem;
+    gap: 0.35rem;
+    height: 1.65rem;
+    padding: 0 0.6rem;
     border-radius: 999px;
     border: 1px solid var(--line-strong);
-    background: var(--color-ink-850);
-    color: var(--color-fg-muted);
+    background: var(--color-paper-2);
+    color: var(--color-ink-2);
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
+    font-size: 0.7rem;
     white-space: nowrap;
   }
 
+  /* Sticker: a rotated, colourful label. Set --r for rotation. */
+  .sticker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    border: 1.5px solid var(--color-ink);
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 0.8rem;
+    transform: rotate(var(--r, -3deg));
+    box-shadow: 2px 2px 0 0 var(--color-ink);
+  }
+
+  /* Rubber stamp: double border, uppercase, slightly rotated and worn. */
+  .stamp {
+    --stamp: var(--color-green);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.18rem 0.55rem;
+    border: 2px solid var(--stamp);
+    outline: 1px solid var(--stamp);
+    outline-offset: 2px;
+    border-radius: 6px;
+    color: var(--stamp);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transform: rotate(var(--r, -4deg));
+    mask-image: var(--grain), linear-gradient(black, black);
+    mask-composite: exclude;
+    -webkit-mask-composite: xor;
+  }
+
   .skeleton {
-    border-radius: 8px;
-    background: linear-gradient(90deg, var(--color-ink-850) 0%, var(--color-ink-750) 50%, var(--color-ink-850) 100%);
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--color-paper-3) 0%, var(--color-paper) 50%, var(--color-paper-3) 100%);
     background-size: 200% 100%;
     animation: var(--animate-shimmer);
-  }
-
-  /* Backgrounds -------------------------------------------------------------- */
-  .bg-dots {
-    background-image: radial-gradient(rgba(255, 255, 255, 0.075) 1px, transparent 1px);
-    background-size: 22px 22px;
-  }
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 64px 64px;
-  }
-  .fade-mask-b { mask-image: linear-gradient(to bottom, black 55%, transparent); }
-  .fade-mask-y { mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent); }
-  .fade-mask-x { mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent); }
-
-  .text-gradient {
-    background: linear-gradient(180deg, #fff 30%, #9a9aa6);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
   }
 
   .caret::after {
@@ -316,44 +369,44 @@
     height: 1.05em;
     margin-left: 2px;
     vertical-align: -0.15em;
-    background: var(--color-signal);
+    background: var(--color-pink);
     animation: var(--animate-blink);
   }
 
-  .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-  .scroll-thin::-webkit-scrollbar-thumb { background: var(--color-ink-700); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+  .scroll-thin::-webkit-scrollbar { width: 9px; height: 9px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: var(--color-paper-4); border-radius: 9px; border: 2px solid transparent; background-clip: content-box; }
   .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
-  /* Markdown answers --------------------------------------------------------- */
-  .md { font-size: 0.9375rem; line-height: 1.7; color: #d6d6dc; }
+  .fade-mask-b { mask-image: linear-gradient(to bottom, black 55%, transparent); }
+  .fade-mask-x { mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent); }
+
+  /* Markdown answers --------------------------------------------------- */
+  .md { font-size: 1rem; line-height: 1.72; color: var(--color-ink-2); }
   .md > * + * { margin-top: 0.85em; }
-  .md h1, .md h2, .md h3, .md h4 { color: var(--color-fg); font-weight: 600; letter-spacing: -0.015em; line-height: 1.3; margin-top: 1.4em; }
-  .md h1 { font-size: 1.25rem; }
-  .md h2 { font-size: 1.125rem; }
-  .md h3 { font-size: 1rem; }
-  .md h4 { font-size: 0.9375rem; }
+  .md h1, .md h2, .md h3, .md h4 { font-family: var(--font-display); color: var(--color-ink); font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; margin-top: 1.4em; }
+  .md h1 { font-size: 1.35rem; } .md h2 { font-size: 1.2rem; } .md h3 { font-size: 1.08rem; } .md h4 { font-size: 1rem; }
   .md > :first-child { margin-top: 0; }
-  .md strong { color: var(--color-fg); font-weight: 600; }
-  .md a { color: var(--color-signal); text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--color-signal) 40%, transparent); text-underline-offset: 3px; }
-  .md ul, .md ol { padding-left: 1.25rem; }
+  .md strong { color: var(--color-ink); font-weight: 650; }
+  .md a { color: var(--color-blue); text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+  .md ul, .md ol { padding-left: 1.4rem; }
   .md ul { list-style: none; }
   .md ul > li { position: relative; }
-  .md ul > li::before { content: ""; position: absolute; left: -0.9rem; top: 0.72em; width: 5px; height: 5px; border-radius: 1px; background: var(--color-fg-faint); }
+  .md ul > li::before { content: ""; position: absolute; left: -1rem; top: 0.68em; width: 7px; height: 7px; border-radius: 999px; background: var(--color-pink); }
   .md ol { list-style: decimal; }
-  .md ol > li::marker { color: var(--color-fg-subtle); font-family: var(--font-mono); font-size: 0.8em; }
+  .md ol > li::marker { color: var(--color-blue); font-family: var(--font-mono); font-size: 0.85em; font-weight: 700; }
   .md li + li { margin-top: 0.35em; }
   .md :not(pre) > code {
-    font-size: 0.82em;
-    padding: 0.15em 0.4em;
-    border-radius: 5px;
-    background: var(--color-ink-800);
-    border: 1px solid var(--line);
-    color: #f0f0f3;
+    font-size: 0.84em;
+    padding: 0.1em 0.38em;
+    border-radius: 6px;
+    background: var(--color-yellow-soft);
+    border: 1px solid color-mix(in oklab, var(--color-yellow) 80%, var(--color-ink) 20%);
+    color: var(--color-ink);
     word-break: break-word;
   }
-  .md blockquote { border-left: 2px solid var(--color-ink-600); padding-left: 1rem; color: var(--color-fg-muted); }
-  .md table { width: 100%; font-size: 0.85rem; border-collapse: collapse; display: block; overflow-x: auto; }
+  .md blockquote { border-left: 3px solid var(--color-pink); padding-left: 1rem; color: var(--color-ink-3); }
+  .md table { width: 100%; font-size: 0.88rem; border-collapse: collapse; display: block; overflow-x: auto; }
   .md th, .md td { border: 1px solid var(--line-strong); padding: 0.4rem 0.6rem; text-align: left; }
-  .md th { background: var(--color-ink-850); color: var(--color-fg); font-weight: 500; }
-  .md hr { border-color: var(--line); }
+  .md th { background: var(--color-paper-3); color: var(--color-ink); font-weight: 600; }
+  .md hr { border-color: var(--line-strong); border-style: dashed; }
 }

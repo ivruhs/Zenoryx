@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -16,11 +17,13 @@ export function ConfirmDialog({ open, title, description, confirmLabel = "Confir
     return () => window.removeEventListener("keydown", onKey);
   }, [open, busy, onCancel]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Portal to <body>: transformed ancestors (tilted cards, animations) would
+  // otherwise become the containing block for position:fixed and trap the overlay.
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-black/60 px-4 backdrop-blur-[2px] animate-fade-in"
+      className="fixed inset-0 z-[100] grid place-items-center bg-ink/30 px-4 backdrop-blur-[2px] animate-fade-in"
       onMouseDown={(e) => {
         e.stopPropagation();
         if (!busy) onCancel?.();
@@ -35,36 +38,38 @@ export function ConfirmDialog({ open, title, description, confirmLabel = "Confir
         aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-desc"
-        className="panel-raised w-full max-w-sm animate-fade-up p-5"
+        className={`paper tape w-full max-w-sm animate-pop p-6 ${destructive ? "offset-pink tape-pink" : "offset-blue"}`}
+        style={{ "--r": "-0.6deg", "--tape-r": "-4deg" }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex gap-3.5">
           {destructive && (
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-coral/25 bg-coral/10 text-coral">
-              <AlertTriangle className="size-4" />
+            <span className="grid size-10 shrink-0 place-items-center rounded-full border-[1.5px] border-ink bg-pink text-ink shadow-[2px_2px_0_0_var(--color-ink)]">
+              <AlertTriangle className="size-4" strokeWidth={2.5} />
             </span>
           )}
           <div className="min-w-0">
-            <h2 id="confirm-title" className="text-[15px] font-semibold tracking-[-0.01em]">
+            <h2 id="confirm-title" className="font-display text-lg font-extrabold leading-snug tracking-[-0.025em]">
               {title}
             </h2>
             {description && (
-              <p id="confirm-desc" className="mt-1.5 text-sm leading-relaxed text-fg-muted">
+              <p id="confirm-desc" className="mt-1.5 text-sm leading-relaxed text-ink-2">
                 {description}
               </p>
             )}
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2.5">
           <button ref={cancelRef} type="button" className="btn btn-ghost btn-sm" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button type="button" className={`btn btn-sm ${destructive ? "btn-danger" : "btn-primary"}`} onClick={onConfirm} disabled={busy}>
+          <button type="button" className={`btn btn-sm ${destructive ? "btn-pink" : "btn-primary"}`} onClick={onConfirm} disabled={busy}>
             {busy && <Spinner className="size-3.5" />}
             {confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

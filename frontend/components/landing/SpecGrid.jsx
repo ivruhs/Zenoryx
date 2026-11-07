@@ -1,68 +1,90 @@
-import { Binary, CircuitBoard, DatabaseZap, Link2, ShieldCheck, Wallet } from "lucide-react";
+import { Boxes, DatabaseZap, Gauge, KeyRound, Quote, Search } from "lucide-react";
+import { cn } from "@/lib/format";
 
 const SPECS = [
   {
-    icon: Binary,
-    label: "Retrieval",
+    icon: Search,
+    tag: "retrieval",
     title: "Hybrid search, not just cosine",
-    body: "pgvector similarity is re-ranked with exact identifier matches, so asking about useAuthStore finds useAuthStore — with per-file diversity in the top-k.",
+    body: "pgvector similarity, re-ranked with a boost for exact identifiers — ask about useAuthStore and you get useAuthStore — plus per-file diversity so one big file can't hog the answer.",
     detail: "score = cos + id_boost − test_penalty",
+    dot: "bg-blue",
+    tape: "",
   },
   {
-    icon: Link2,
-    label: "Grounding",
-    title: "Citations to the exact line",
-    body: "Every claim carries a [n] marker that resolves to a chunk with its file, symbol and line range, pinned to the indexed commit on GitHub.",
-    detail: "blob/5317ebe/lib/index.js#L159-L190",
+    icon: Quote,
+    tag: "grounding",
+    title: "Receipts for every claim",
+    body: "Answers cite [n] sources. Each one resolves to a chunk with its symbol and line range, linked to GitHub at the exact commit that was indexed.",
+    detail: "blob/<sha>/lib/index.js#L159-L190",
+    dot: "bg-pink",
+    tape: "tape-pink",
   },
   {
-    icon: CircuitBoard,
-    label: "Resilience",
+    icon: Gauge,
+    tag: "resilience",
     title: "A quota-aware model pool",
-    body: "Seven free-tier models sit behind one gateway, each with its own token bucket. Calls wait for budget instead of hitting 429s, exhausted models are parked, and streams only fail over before the first token.",
+    body: "Seven free-tier models (Gemini Flash-Lite + Groq gpt-oss/qwen) behind one gateway, each with its own token bucket. Calls wait for budget instead of eating 429s; streams only fail over before the first token.",
     detail: "rpm + tpm buckets · per-day quota parking",
+    dot: "bg-orange",
+    tape: "tape-blue",
   },
   {
     icon: DatabaseZap,
-    label: "Jobs",
-    title: "A durable queue in Postgres",
-    body: "Atomic claims, exponential retries and recovery on boot. A redeploy mid-ingestion resumes instead of leaving a repository stuck.",
+    tag: "jobs",
+    title: "Postgres is the queue",
+    body: "No Redis to babysit. Jobs are claimed atomically, retried with backoff, handed back on shutdown and recovered on boot — a redeploy mid-ingestion loses nothing.",
     detail: "UPDATE … WHERE status = 'PENDING'",
+    dot: "bg-green",
+    tape: "",
   },
   {
-    icon: ShieldCheck,
-    label: "Security",
-    title: "Server-side sessions",
-    body: "HttpOnly cookies signed with HMAC-SHA256 and checked in constant time, revocable instantly, served first-party through the /api proxy.",
+    icon: KeyRound,
+    tag: "security",
+    title: "Boring, correct sessions",
+    body: "Server-side sessions in HttpOnly cookies signed with HMAC-SHA256, checked in constant time and revocable instantly — served first-party through the /api proxy.",
     detail: "bcrypt(12) · timingSafeEqual",
+    dot: "bg-yellow",
+    tape: "tape-pink",
   },
   {
-    icon: Wallet,
-    label: "Cost",
-    title: "Runs entirely on free tiers",
-    body: "Batched embeddings, raw-CDN downloads that skip API quota, and health checks that never wake the database. Zero infrastructure spend.",
-    detail: "Neon · Gemini · Groq · GitHub",
+    icon: Boxes,
+    tag: "cost",
+    title: "Runs on free tiers. Only.",
+    body: "File contents come from GitHub's raw CDN (no API quota), embeddings are batched and paced, and health checks never wake the database.",
+    detail: "Neon · Gemini · Groq · GitHub = $0",
+    dot: "bg-pink",
+    tape: "tape-blue",
   },
 ];
 
+const TILTS = [-1.4, 0.9, -0.5, 1.2, -1, 0.6];
+
 export function SpecGrid() {
   return (
-    <div className="grid gap-px overflow-hidden rounded-2xl border hairline bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-3">
-      {SPECS.map(({ icon: Icon, label, title, body, detail }) => (
-        <article key={title} className="flex flex-col bg-ink-900 p-6">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-lg border hairline-strong bg-ink-850">
-              <Icon className="size-4 text-fg-muted" />
-            </span>
-            <span className="eyebrow">{label}</span>
-          </div>
-          <h3 className="mt-5 text-[17px] font-semibold tracking-[-0.02em]">{title}</h3>
-          <p className="mt-2 flex-1 text-sm leading-relaxed text-fg-muted">{body}</p>
-          <code className="mt-5 block truncate rounded-md border hairline bg-ink-950 px-2.5 py-1.5 font-mono text-[11px] text-fg-subtle">
-            {detail}
-          </code>
-        </article>
+    <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+      {SPECS.map((s, i) => (
+        <li
+          key={s.title}
+          className={cn("tape transition-transform duration-300 hover:!rotate-0 hover:-translate-y-1", s.tape)}
+          style={{ transform: `rotate(${TILTS[i]}deg)`, "--tape-r": `${i % 2 ? 4 : -3}deg` }}
+        >
+          <article className="ruled flex h-full flex-col overflow-hidden rounded-xl border-[1.5px] border-ink bg-paper-2 shadow-[3px_3px_0_0_var(--color-ink)]">
+            {/* index-card header rule */}
+            <div className="flex items-center gap-2.5 border-b-2 border-pink/70 px-5 pb-3 pt-5">
+              <span className={cn("grid size-8 place-items-center rounded-full border-[1.5px] border-ink text-ink", s.dot)}>
+                <s.icon className="size-4" />
+              </span>
+              <span className="eyebrow">{s.tag}</span>
+            </div>
+            <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
+              <h3 className="font-display text-xl font-extrabold leading-tight tracking-tight">{s.title}</h3>
+              <p className="mt-2 text-[14.5px] leading-[2rem] text-ink-2">{s.body}</p>
+              <p className="mt-auto pt-3 font-mono text-[11px] text-blue">{s.detail}</p>
+            </div>
+          </article>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
