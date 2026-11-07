@@ -10,8 +10,8 @@ const { notFound, errorHandler } = require("./middleware/errors");
 function createApp() {
   const app = express();
   app.disable("x-powered-by");
-  // Behind Render/Vercel proxies: trust the first hop so rate limits see real client IPs.
-  app.set("trust proxy", 1);
+  // Number of proxies in front of the API (Render = 1; Vercel rewrite + Render = 2).
+  app.set("trust proxy", config.trustProxy);
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(

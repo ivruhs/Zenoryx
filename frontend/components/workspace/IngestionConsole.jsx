@@ -113,11 +113,11 @@ export function IngestionConsole({ project }) {
   const queryClient = useQueryClient();
   const failed = project.status === "FAILED";
   const running = project.status === "PROCESSING";
-  const elapsed = useElapsed(project.startedAt || project.createdAt, !failed);
+  const elapsed = useElapsed(project.status === "PROCESSING" ? project.startedAt : null, running);
   const lines = useEventLog(project);
   const logRef = useRef(null);
   const current = project.status === "PENDING" ? -1 : stageIndex(project.stage);
-  const stalled = elapsed > 5 * 60_000 && !failed;
+  const stalled = running && elapsed > 5 * 60_000;
 
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
@@ -134,7 +134,9 @@ export function IngestionConsole({ project }) {
   });
   const remove = useMutation({
     mutationFn: () => api.del(`/projects/${project.id}`),
+    onMutate: () => queryClient.cancelQueries({ queryKey: ["project", project.id] }),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["project", project.id] });
       queryClient.setQueryData(qk.projects, (old) => old?.filter((p) => p.id !== project.id));
       toast("Repository removed");
       router.replace("/dashboard");

@@ -31,12 +31,22 @@ function useRequireUser() {
   return me;
 }
 
-function BootScreen() {
+function BootScreen({ error, onRetry, retrying }) {
   return (
-    <div className="grid min-h-dvh place-items-center">
-      <div className="flex flex-col items-center gap-3">
-        <LogoMark className="size-12 animate-wiggle" />
-        <span className="hand text-xl text-ink-3">checking your library card…</span>
+    <div className="grid min-h-dvh place-items-center px-4">
+      <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+        <LogoMark className={cn("size-12", !error && "animate-wiggle")} />
+        {error ? (
+          <>
+            <p className="font-display text-xl font-bold">Couldn&apos;t reach the press</p>
+            <p className="text-sm text-ink-2">{error.message || "The API didn't respond."} Free servers can take ~30s to wake up.</p>
+            <button type="button" className="btn btn-secondary btn-sm mt-2" onClick={onRetry} disabled={retrying}>
+              {retrying ? <Spinner /> : null} Try again
+            </button>
+          </>
+        ) : (
+          <span className="hand text-xl text-ink-3">checking your library card…</span>
+        )}
       </div>
     </div>
   );
@@ -322,6 +332,7 @@ export function AppShell({ children, fullBleed = false }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  if (me.isError && !me.data) return <BootScreen error={me.error} onRetry={() => me.refetch()} retrying={me.isFetching} />;
   if (me.isPending || !me.data) return <BootScreen />;
 
   return (

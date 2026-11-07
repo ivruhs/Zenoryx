@@ -24,25 +24,33 @@ export async function streamSSE(url, body, { onEvent, signal }) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const dispatch = (frame) => {
+    const data = frame
+      .split(/\r?\n/)
+      .filter((l) => l.startsWith("data:"))
+      .map((l) => l.slice(5).trimStart())
+      .join("\n");
+    if (!data) return; // comments / heartbeats
+    let event;
+    try {
+      event = JSON.parse(data);
+    } catch {
+      return; // ignore a malformed frame
+    }
+    onEvent(event); // handler errors must propagate to the caller
+  };
+
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    let sep;
-    while ((sep = buffer.indexOf("\n\n")) !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      const data = frame
-        .split("\n")
-        .filter((l) => l.startsWith("data:"))
-        .map((l) => l.slice(5).trimStart())
-        .join("\n");
-      if (!data) continue; // comments / heartbeats
-      try {
-        onEvent(JSON.parse(data));
-      } catch {
-        /* ignore malformed frame */
-      }
+    let m;
+    while ((m = /\r?\n\r?\n/.exec(buffer))) {
+      const frame = buffer.slice(0, m.index);
+      buffer = buffer.slice(m.index + m[0].length);
+      dispatch(frame);
     }
   }
+  buffer += decoder.decode();
+  if (buffer.trim()) dispatch(buffer);
 }

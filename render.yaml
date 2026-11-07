@@ -12,6 +12,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: TRUST_PROXY # Vercel rewrite + Render load balancer
+        value: "2"
       - key: DATABASE_URL
         sync: false
       - key: COOKIE_SECRET

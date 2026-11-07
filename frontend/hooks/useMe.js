@@ -10,7 +10,9 @@ export function useMe(options = {}) {
     // Soft endpoint: 200 { user: null } when signed out, so public pages don't log 401s.
     queryFn: async () => (await api.get("/auth/session")).user ?? null,
     staleTime: 5 * 60_000,
-    retry: false,
+    // Retry network errors / 5xx (free-tier cold starts); never retry auth answers.
+    retry: (count, err) => count < 3 && (!err?.status || err.status >= 500),
+    retryDelay: (n) => Math.min(1500 * 2 ** n, 8000),
     ...options,
   });
 }

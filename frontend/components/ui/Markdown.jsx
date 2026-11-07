@@ -9,7 +9,7 @@ import { cn } from "@/lib/format";
 /** Turns "[1]", "[2, 4]" and "[1][3]" into cite: links, skipping code spans/blocks. */
 export function linkCitations(text, max = 99) {
   return text
-    .split(/(```[\s\S]*?(?:```|$)|`[^`\n]*`)/g)
+    .split(/(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)|(?:^|\n)(?: {4}|\t)[^\n]*(?:\n(?: {4}|\t)[^\n]*)*|`[^`\n]*`)/g)
     .map((part, i) => {
       if (i % 2 === 1) return part; // code — leave untouched
       return part.replace(/\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\](?!\()/g, (m, nums) =>

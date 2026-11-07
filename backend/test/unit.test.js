@@ -10,7 +10,7 @@ const { signCookie, verifyCookie } = require("../src/auth/crypto");
 const { extractTerms, lexicalScore } = require("../src/services/vector.service");
 const { normalizeHistory, buildContext } = require("../src/controllers/qa.controller");
 const { diffStats, mapLimit } = require("../src/jobs/ingest");
-const { isRetryable } = require("../src/jobs/runner");
+const { isRetryable, JobRunner } = require("../src/jobs/runner");
 const { Bucket, estimateTokens } = require("../src/services/llm.service");
 
 test("parseRepoUrl accepts the shapes people paste", () => {
@@ -179,4 +179,33 @@ test("token bucket enforces requests- and tokens-per-minute", () => {
   assert.ok(t.waitFor(200) > 0, "tpm exhausted");
   assert.equal(t.waitFor(100), 0);
   assert.ok(estimateTokens(3200) === 1000);
+});
+
+test("line windows on long-line files don't degenerate into 1-line steps", () => {
+  const long = Array.from({ length: 30 }, (_, i) => `const x${i} = "${"a".repeat(700)}";`).join("\n");
+  const chunks = chunkCode(long, "go");
+  assert.ok(chunks.length <= 12, `expected ~10 windows, got ${chunks.length}`);
+  assert.equal(chunks.at(-1).endLine, 30, "covers the whole file");
+});
+
+test("runner never exceeds its concurrency, even while claims are in flight", async () => {
+  const r = new JobRunner({ concurrency: 1 });
+  let active = 0;
+  let peak = 0;
+  r.run = async (id) => {
+    peak = Math.max(peak, ++active);
+    await new Promise((res) => setTimeout(res, 20));
+    active--;
+    r.running.delete(id);
+    r.tick();
+  };
+  ["a", "b", "c", "d"].forEach((id) => r.enqueue(id));
+  await new Promise((res) => setTimeout(res, 200));
+  assert.equal(peak, 1);
+  assert.equal(r.queue.length, 0);
+  await r.stop(100);
+});
+
+test("GitHub rate limits fail fast instead of burning retries", () => {
+  assert.equal(isRetryable({ status: 429, code: "GITHUB_RATE_LIMIT" }), false);
 });

@@ -8,14 +8,37 @@ import { Spinner } from "@/components/ui/Spinner";
 /** Small accessible confirm dialog (replaces window.confirm). */
 export function ConfirmDialog({ open, title, description, confirmLabel = "Confirm", destructive = false, busy = false, onConfirm, onCancel }) {
   const cancelRef = useRef(null);
+  const latest = useRef({ onCancel, busy });
+  latest.current = { onCancel, busy };
 
+  // Focus once per opening (not on every parent re-render), trap Tab inside,
+  // and hand focus back to whatever opened the dialog.
   useEffect(() => {
     if (!open) return;
+    const opener = document.activeElement;
     cancelRef.current?.focus();
-    const onKey = (e) => e.key === "Escape" && !busy && onCancel?.();
+    const onKey = (e) => {
+      if (e.key === "Escape" && !latest.current.busy) latest.current.onCancel?.();
+      if (e.key === "Tab") {
+        const nodes = [...document.querySelectorAll("[role=alertdialog] button:not(:disabled)")];
+        if (!nodes.length) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, busy, onCancel]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();
+    };
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 

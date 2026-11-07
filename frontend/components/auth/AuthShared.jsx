@@ -8,7 +8,15 @@ import { cn } from "@/lib/format";
 
 /** Only same-site relative paths are allowed as post-auth destinations. */
 export function safeNext(next) {
-  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : null;
+  if (typeof next !== "string" || !next.startsWith("/") || /[\x00-\x1f\\]/.test(next)) return null;
+  try {
+    // Resolve exactly like the browser will; anything that leaves our origin is rejected.
+    const base = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+    const u = new URL(next, base);
+    return u.origin === base ? `${u.pathname}${u.search}${u.hash}` : null;
+  } catch {
+    return null;
+  }
 }
 
 export function destinationFor(params) {

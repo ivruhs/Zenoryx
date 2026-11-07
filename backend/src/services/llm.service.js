@@ -26,18 +26,22 @@ class LLMError extends Error {
 }
 
 const estimateTokens = (chars) => Math.ceil(chars / 3.2);
-const sleep = (ms, signal) =>
-  new Promise((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(t);
-        reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
-      },
-      { once: true },
-    );
+/** Abortable sleep that never leaks listeners and honours an already-aborted signal. */
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const abortErr = () => Object.assign(new Error("aborted"), { name: "AbortError" });
+    if (signal?.aborted) return reject(abortErr());
+    const onAbort = () => {
+      clearTimeout(t);
+      reject(abortErr());
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
+}
 
 // ---------------------------------------------------------------------------
 // Rolling-window limiter (requests + tokens per 60s) per route
@@ -319,6 +323,8 @@ async function run(mode, opts, onToken, { purpose = "interactive", maxWaitMs } =
           emitted = true;
           onToken(t);
         });
+        // A 200 with zero tokens (safety block, exhausted reasoning budget…) is a failure: fail over.
+        if (!emitted) throw new LLMError(`${route.id} returned an empty stream`, { status: 502, provider: route.provider });
         return { provider: route.provider, model: route.model };
       }
       const text = await adapter.generate(route, prepared);

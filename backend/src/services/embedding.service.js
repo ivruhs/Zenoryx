@@ -21,6 +21,9 @@ function waitForBudget(n, tokens) {
   const usedN = recent.reduce((a, e) => a + e.n, 0);
   const usedT = recent.reduce((a, e) => a + e.tokens, 0);
   if (usedN + n <= EMBED_RPM && usedT + tokens <= EMBED_TPM) return 0;
+  // A single request bigger than the whole budget can never "fit" — let it through
+  // once the window is empty instead of waiting forever (the API will pace us).
+  if (recent.length === 0) return 0;
   let freedN = 0;
   let freedT = 0;
   for (const e of recent) {
@@ -31,23 +34,41 @@ function waitForBudget(n, tokens) {
   return 60_000;
 }
 
+/** Hours until Google's free-tier daily quotas reset (midnight US Pacific). */
+function hoursUntilQuotaReset(now = new Date()) {
+  const pacific = new Date(now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+  const midnight = new Date(pacific);
+  midnight.setHours(24, 0, 0, 0);
+  return Math.max(1, Math.ceil((midnight - pacific) / 3_600_000));
+}
+
 class QuotaExhaustedError extends Error {
   constructor() {
-    super("The free Gemini embedding quota for today is used up. It resets daily — please try again later.");
+    const h = hoursUntilQuotaReset();
+    super(`Today's free Gemini embedding quota (1,000/day) is used up. It resets at midnight Pacific — in about ${h} hour${h === 1 ? "" : "s"}.`);
+    this.code = "EMBED_QUOTA_EXHAUSTED";
     this.status = 429;
     this.retryable = false;
     this.expose = true;
   }
 }
 
-const sleep = (ms, signal) =>
-  new Promise((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
+/** Abortable sleep that never leaks listeners and honours an already-aborted signal. */
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const abortErr = () => Object.assign(new Error("aborted"), { name: "AbortError" });
+    if (signal?.aborted) return reject(abortErr());
+    const onAbort = () => {
       clearTimeout(t);
-      reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
-    }, { once: true });
+      reject(abortErr());
+    };
+    const t = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
+}
 
 function endpoint() {
   return `https://generativelanguage.googleapis.com/v1beta/models/${config.gemini.embeddingModel}:batchEmbedContents`;
@@ -121,11 +142,22 @@ async function requestBatch(texts, taskType, signal) {
  */
 async function embedDocuments(texts, { signal, onProgress } = {}) {
   if (!config.gemini.apiKey) throw new Error("GEMINI_API_KEY is required for embeddings.");
+  // Batch by count AND by estimated tokens so no batch exceeds the per-minute budget.
+  const maxBatchTokens = Math.floor(EMBED_TPM * 0.6);
+  const maxBatchCount = Math.min(BATCH_SIZE, Math.max(1, EMBED_RPM));
   const out = [];
-  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const batch = texts.slice(i, i + BATCH_SIZE);
+  let i = 0;
+  while (i < texts.length) {
+    const batch = [];
+    let tokens = 0;
+    while (i < texts.length && batch.length < maxBatchCount) {
+      const t = Math.ceil(Math.min(texts[i].length, MAX_INPUT_CHARS) / 3.2);
+      if (batch.length && tokens + t > maxBatchTokens) break;
+      batch.push(texts[i++]);
+      tokens += t;
+    }
     out.push(...(await requestBatch(batch, "RETRIEVAL_DOCUMENT", signal)));
-    onProgress?.(Math.min(i + BATCH_SIZE, texts.length), texts.length);
+    onProgress?.(i, texts.length);
   }
   return out;
 }

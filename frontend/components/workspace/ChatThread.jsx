@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, Check, CornerDownLeft, RotateCcw, Scissors, Square } from "lucide-react";
 import { LogoMark } from "@/components/ui/Logo";
 import { Markdown } from "@/components/ui/Markdown";
@@ -99,7 +99,9 @@ function SourceChips({ sources, active, onCite }) {
   );
 }
 
-function Exchange({ ex, focused, activeCite, onCite, onRetry, live }) {
+const Exchange = memo(function Exchange({ ex, focused, activeCite, onCiteFor, onRetryFor, live }) {
+  const onCite = (n) => onCiteFor(ex.id, n);
+  const onRetry = () => onRetryFor(ex.question);
   const streaming = live && (ex.phase === "streaming" || ex.phase === "generating");
   const meta = [ex.latencyMs ? duration(ex.latencyMs) : null, ex.model || null].filter(Boolean);
 
@@ -150,7 +152,7 @@ function Exchange({ ex, focused, activeCite, onCite, onRetry, live }) {
       </div>
     </article>
   );
-}
+});
 
 function suggestionsFor(project, files) {
   const repo = project.repoName;
@@ -190,7 +192,7 @@ function EmptyState({ project, onAsk }) {
         </span>
       </div>
       <h2 className="font-display text-4xl font-extrabold leading-[1] tracking-[-0.045em] sm:text-[3.4rem]" style={{ fontVariationSettings: '"wdth" 85' }}>
-        What do you want to know about <span className="marker misreg whitespace-nowrap">{project.repoName}</span>?
+        What do you want to know about <span className="marker misreg [overflow-wrap:anywhere]">{project.repoName}</span>?
       </h2>
       <p className="mt-4 max-w-xl text-[17px] text-ink-2">
         Every answer is pasted together from real code — tap a <span className="mx-0.5 inline-grid size-5 -translate-y-px place-items-center rounded-full border-[1.5px] border-ink bg-pink align-middle font-mono text-[10px] font-bold">1</span> sticker to see exactly which lines it came from.
@@ -310,10 +312,22 @@ export function ChatThread({ project, conversation, focus, onCite, inputRef, dra
     setShowJump(!nearBottom);
   };
 
-  const submit = (q) => {
-    stickToBottom.current = true;
-    ask(q);
-  };
+  const submit = useCallback(
+    (q) => {
+      stickToBottom.current = true;
+      ask(q);
+    },
+    [ask],
+  );
+
+  // Stable callbacks so memoized exchanges don't re-render on every streamed frame.
+  const latest = useRef({ onCite, conversation, submit });
+  latest.current = { onCite, conversation, submit };
+  const onCiteFor = useCallback((id, n) => latest.current.onCite(id, n), []);
+  const onRetryFor = useCallback((question) => {
+    latest.current.conversation.dismissLive();
+    latest.current.submit(question);
+  }, []);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -334,12 +348,9 @@ export function ChatThread({ project, conversation, focus, onCite, inputRef, dra
                   ex={ex}
                   live={ex.live}
                   focused={focus.messageId === ex.id}
-                  activeCite={focus.cite}
-                  onCite={(n) => onCite(ex.id, n)}
-                  onRetry={() => {
-                    conversation.dismissLive();
-                    submit(ex.question);
-                  }}
+                  activeCite={focus.messageId === ex.id ? focus.cite : null}
+                  onCiteFor={onCiteFor}
+                  onRetryFor={onRetryFor}
                 />
               ))}
             </div>

@@ -92,6 +92,8 @@ async function ask(req, res) {
   res.on("close", () => {
     if (!res.writableFinished) controller.abort();
   });
+  // The client may already have gone during the awaits above (cold DB, double submit).
+  if (res.destroyed || req.socket?.destroyed) controller.abort();
   const send = (event) => {
     if (!res.writableEnded) res.write(`data: ${JSON.stringify(event)}\n\n`);
   };
@@ -187,9 +189,12 @@ async function ask(req, res) {
       const busy = err.status === 429 || /429|quota|rate/i.test(err.message || "");
       send({
         type: "error",
-        error: busy
-          ? "The free AI tier is busy right now. Please try again in a minute."
-          : "Something went wrong while generating the answer.",
+        error:
+          err.code === "EMBED_QUOTA_EXHAUSTED"
+            ? err.message
+            : busy
+              ? "The free AI tier is busy right now. Please try again in a minute."
+              : "Something went wrong while generating the answer.",
       });
     }
   } finally {

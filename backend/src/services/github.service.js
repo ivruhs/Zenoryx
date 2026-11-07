@@ -115,24 +115,29 @@ async function fetchTree(owner, repo, branch) {
   return { commitSha, tree: data.tree, truncated: Boolean(data.truncated) };
 }
 
-/** Downloads a file via the raw CDN (no API quota). Returns "" on failure. */
+/**
+ * Downloads a file via the raw CDN (no API quota).
+ * Returns the text, "" for a file that genuinely doesn't exist (404), or null when
+ * the download failed (throttling, 5xx, timeout) so callers can tell the difference.
+ */
 async function getRawFile(owner, repo, ref, filePath, { timeoutMs = 15000 } = {}) {
   const url = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${filePath
     .split("/")
     .map(encodeURIComponent)
     .join("/")}`;
+  const headers = authed && config.githubToken ? { authorization: `token ${config.githubToken}` } : undefined;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
       if (res.ok) return await res.text();
       if (res.status === 404) return "";
-      if (res.status < 500 && res.status !== 429) return "";
+      if (res.status < 500 && res.status !== 429) return null;
     } catch (err) {
       if (attempt === 3) logger.warn({ filePath, err: err.message }, "[github] raw download failed");
     }
-    await new Promise((r) => setTimeout(r, 400 * attempt));
+    await new Promise((r) => setTimeout(r, 600 * attempt));
   }
-  return "";
+  return null;
 }
 
 async function getCommits(owner, repo, count = 6) {

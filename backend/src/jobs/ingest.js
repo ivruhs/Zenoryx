@@ -242,15 +242,29 @@ async function runIngestion(projectId, { signal, report }) {
   const ranked = [...selected].sort((a, b) => b.score - a.score);
   let parsedCount = 0;
   let totalBytes = 0;
+  let failedDownloads = 0;
   const files = await mapLimit(ranked, 6, async (f) => {
     throwIfAborted(signal);
-    const content = await github.getRawFile(meta.owner, meta.repo, commitSha, f.path);
+    let content = await github.getRawFile(meta.owner, meta.repo, commitSha, f.path);
+    if (content === null) {
+      failedDownloads++;
+      content = "";
+    }
     totalBytes += Buffer.byteLength(content, "utf8");
     const chunks = content ? chunker.chunkCode(content, f.language) : [];
     parsedCount++;
     report("parsing", parsedCount, selected.length);
     return { ...f, chunks };
   });
+
+  // Transient download failures (CDN throttling) must not silently produce a
+  // partial index — retry the whole job instead.
+  if (failedDownloads > Math.max(2, ranked.length * 0.25)) {
+    throw new PipelineError(`GitHub's file CDN failed for ${failedDownloads} of ${ranked.length} files (likely throttling). Retrying shortly.`, {
+      retryable: true,
+    });
+  }
+  if (failedDownloads) logger.warn({ projectId, failedDownloads }, "[ingest] some files could not be downloaded");
 
   let budget = config.ingestion.maxChunks;
   const indexed = [];

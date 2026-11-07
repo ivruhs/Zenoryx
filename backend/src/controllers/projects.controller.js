@@ -27,6 +27,7 @@ const LIST_FIELDS = {
   createdAt: true,
   completedAt: true,
   startedAt: true,
+  updatedAt: true,
 };
 
 function serialize(project) {
@@ -34,6 +35,8 @@ function serialize(project) {
   const out = { ...project };
   if (typeof out.totalSize === "bigint") out.totalSize = Number(out.totalSize);
   if (out.status === "PENDING" || out.status === "PROCESSING") {
+    // Lazy recovery: polling a job this process isn't handling re-schedules it.
+    runner.ensureScheduled(project).catch(() => {});
     out.progress = runner.getProgress(project.id);
   }
   return out;
@@ -152,6 +155,7 @@ async function status(req, res) {
     errorMessage: true,
     attempts: true,
     startedAt: true,
+    updatedAt: true,
   });
   res.json(serialize(project));
 }
@@ -163,7 +167,7 @@ async function retry(req, res) {
   }
   await prisma.project.update({
     where: { id: project.id },
-    data: { status: "PENDING", stage: "queued", attempts: 0, errorMessage: null },
+    data: { status: "PENDING", stage: "queued", attempts: 0, errorMessage: null, startedAt: null, completedAt: null },
   });
   runner.enqueue(project.id);
   res.status(202).json({ projectId: project.id, status: "PENDING" });

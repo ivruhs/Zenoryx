@@ -70,6 +70,7 @@ export function useConversation(projectId) {
 
       let answer = "";
       let sources = [];
+      let finished = false;
       let pending = "";
       let raf = 0;
       const flush = () => {
@@ -95,6 +96,7 @@ export function useConversation(projectId) {
                 pending += e.token;
                 if (!raf) raf = requestAnimationFrame(flush);
               } else if (e.type === "done") {
+                finished = true;
                 if (raf) cancelAnimationFrame(raf);
                 flush();
                 const now = new Date().toISOString();
@@ -110,6 +112,7 @@ export function useConversation(projectId) {
             },
           },
         );
+        if (!finished) throw new Error("The connection closed before the answer finished. Please retry.");
       } catch (err) {
         if (raf) cancelAnimationFrame(raf);
         flush();

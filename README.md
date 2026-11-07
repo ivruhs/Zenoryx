@@ -94,6 +94,7 @@ npm run dev                 # http://localhost:3000
 | `PORT` | no | Default `8000`. |
 | `FRONTEND_URL` | no | CORS allow-list. Only needed if a browser calls the API cross-origin. |
 | `GEMINI_CHAT_MODELS`, `GROQ_CHAT_MODELS` | no | Comma-separated model pools, in preference order. |
+| `TRUST_PROXY` | no | Proxy hops in front of the API: `1` for Render alone, `2` behind the Vercel rewrite (sets real client IPs for rate limits). |
 | `MAX_FILES`, `MAX_CHUNKS`, `QA_PER_HOUR` | no | Per-repo budget (default 36 files / 180 chunks) and per-user question limit. |
 
 > The committed template is `backend/env.example`. Real `.env*` files are gitignored.

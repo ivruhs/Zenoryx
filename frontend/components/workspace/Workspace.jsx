@@ -36,14 +36,21 @@ function ArmedButton({ onConfirm, children, armedLabel, className, disabled }) {
 }
 
 function Drawer({ side, open, onClose, children, label }) {
+  const closeRef = useRef(null);
   useEffect(() => {
     if (!open) return;
+    const opener = document.activeElement;
+    closeRef.current?.focus();
     const onKey = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      if (opener && typeof opener.focus === "function" && document.contains(opener)) opener.focus();
+    };
   }, [open, onClose]);
   return (
-    <div className={cn("fixed inset-0 z-50", open ? "pointer-events-auto" : "pointer-events-none")} aria-hidden={!open}>
+    // `inert` removes the closed drawer (and its duplicate panels) from the tab order and a11y tree.
+    <div className={cn("fixed inset-0 z-50", open ? "pointer-events-auto" : "pointer-events-none")} inert={!open}>
       <div className={cn("absolute inset-0 bg-ink/30 backdrop-blur-[2px] transition-opacity", open ? "opacity-100" : "opacity-0")} onClick={onClose} />
       <aside
         aria-label={label}
@@ -53,7 +60,7 @@ function Drawer({ side, open, onClose, children, label }) {
           open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
         )}
       >
-        <button type="button" onClick={onClose} className="icon-btn absolute right-2 top-2 z-10" aria-label="Close panel">
+        <button ref={closeRef} type="button" onClick={onClose} className="icon-btn absolute right-2 top-2 z-10" aria-label="Close panel">
           <X className="size-4" />
         </button>
         {children}
@@ -70,7 +77,7 @@ export function Workspace({ project }) {
 
   const [tabs, setTabs] = useState([]); // open file paths
   const [active, setActive] = useState("chat"); // "chat" | path
-  const [focusLine, setFocusLine] = useState(null);
+  const [focusLines, setFocusLines] = useState({}); // path -> line to highlight in that tab
   const [focus, setFocus] = useState({ messageId: null, cite: null });
   const [drawer, setDrawer] = useState(null); // "files" | "sources" | null
   const [draft, setDraft] = useState("");
@@ -99,7 +106,7 @@ export function Workspace({ project }) {
   const openFile = useCallback((path, line = null) => {
     setTabs((t) => (t.includes(path) ? t : [...t.slice(-5), path]));
     setActive(path);
-    setFocusLine(line);
+    setFocusLines((m) => ({ ...m, [path]: line }));
     setDrawer(null);
   }, []);
   const closeTab = (path) => {
@@ -114,12 +121,19 @@ export function Workspace({ project }) {
 
   const askFromAnywhere = (q) => {
     setActive("chat");
+    if (conversation.busy) {
+      setDraft(q); // don't drop it — park it in the composer until the current answer finishes
+      toast("Still answering the last question", { description: "Your question is waiting in the box below." });
+      return;
+    }
     conversation.ask(q);
   };
 
   const remove = useMutation({
     mutationFn: () => api.del(`/projects/${project.id}`),
+    onMutate: () => queryClient.cancelQueries({ queryKey: ["project", project.id] }),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["project", project.id] });
       queryClient.setQueryData(qk.projects, (old) => old?.filter((p) => p.id !== project.id));
       toast("Repository deleted", { description: "Vectors, commits and chat history were removed." });
       router.replace("/dashboard");
@@ -151,7 +165,7 @@ export function Workspace({ project }) {
   const fileLang = (p) => files.find((f) => f.path === p)?.language;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col">
+    <div className="flex h-[calc(100dvh-var(--app-header-h,4rem))] min-h-0 flex-col">
       {/* Repository bar */}
       <div className="flex h-14 shrink-0 items-center gap-3 border-b-[1.5px] border-ink bg-paper-2 px-3 sm:px-4">
         <Link href="/dashboard" className="icon-btn" aria-label="Back to repositories">
@@ -254,7 +268,7 @@ export function Workspace({ project }) {
               />
             </div>
             {active !== "chat" && (
-              <FileInspector key={active} project={project} path={active} focusLine={focusLine} onAsk={askFromAnywhere} />
+              <FileInspector key={active} project={project} path={active} focusLine={focusLines[active] ?? null} onAsk={askFromAnywhere} />
             )}
           </div>
         </section>
@@ -271,7 +285,7 @@ export function Workspace({ project }) {
         {explorer}
       </Drawer>
       <Drawer side="right" open={drawer === "sources"} onClose={() => setDrawer(null)} label="Sources">
-        {sources}
+        <div className="flex min-h-0 flex-1 flex-col pt-8">{sources}</div>
       </Drawer>
     </div>
   );

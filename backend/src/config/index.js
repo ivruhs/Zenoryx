@@ -41,6 +41,7 @@ module.exports = {
   cookieCrossSite: process.env.COOKIE_CROSS_SITE === "true",
 
   githubToken: process.env.GITHUB_TOKEN || null,
+  trustProxy: int("TRUST_PROXY", 1),
 
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || null,

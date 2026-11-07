@@ -37,6 +37,7 @@ function LoginForm() {
   const login = useMutation({
     mutationFn: (values) => api.post("/auth/login", values),
     onSuccess: (res) => {
+      queryClient.clear(); // never show the previous account's cached data
       queryClient.setQueryData(qk.me, res.user);
       router.replace(destination);
     },

@@ -127,7 +127,10 @@ function windowLines(lines, startRow, endRow, meta = {}) {
     }
     out.push({ startRow: cursor, endRow: end - 1, nodeType: meta.nodeType || "window", symbol: meta.symbol || null });
     if (end > endRow) break;
-    cursor = Math.max(cursor + 1, end - 3); // 3 lines of overlap for context continuity
+    // Up to 3 lines of overlap for continuity, but never more than a quarter of the
+    // window — long-line files would otherwise advance one line at a time.
+    const overlap = Math.min(3, Math.floor((end - cursor) / 4));
+    cursor = Math.max(cursor + 1, end - overlap);
   }
   return out;
 }
