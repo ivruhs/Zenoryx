@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ExternalLink, ScanSearch, Scissors } from "lucide-react";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { LangDot } from "@/components/ui/LanguageBar";
+import { InlineCode } from "@/components/ui/InlineCode";
 import { cn, githubBlobUrl } from "@/lib/format";
 
 const TAPES = ["", "tape-pink", "tape-blue"];
@@ -73,7 +74,7 @@ function SourceCard({ source, index, active, project, maxScore, onOpenInFile, in
           {source.summary && (
             <p className="text-[13px] leading-relaxed text-ink-2">
               <span className="hand mr-1 text-base text-pink-deep">file role:</span>
-              {source.summary}
+              <InlineCode text={source.summary} />
             </p>
           )}
           {source.snippet && (

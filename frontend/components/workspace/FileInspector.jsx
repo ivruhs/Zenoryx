@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ExternalLink, MessageSquareText, Scissors } from "lucide-react";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { InlineCode } from "@/components/ui/InlineCode";
 import { LangDot } from "@/components/ui/LanguageBar";
 import { cn, githubBlobUrl } from "@/lib/format";
 import { langMeta } from "@/lib/languages";
@@ -56,7 +57,7 @@ export function FileInspector({ project, path, focusLine, onAsk }) {
           {meta?.summary && (
             <p className="mt-3 max-w-3xl text-[16px] leading-relaxed text-ink-2">
               <span className="hand mr-1.5 text-xl text-pink-deep">tl;dr</span>
-              {meta.summary}
+              <InlineCode text={meta.summary} />
             </p>
           )}
           <div className="mt-5 flex flex-wrap gap-3">
@@ -109,7 +110,9 @@ export function FileInspector({ project, path, focusLine, onAsk }) {
                     {c.symbol && <span className="truncate font-mono text-[13px] font-bold text-ink">{c.symbol}</span>}
                   </div>
                   {c.summary && !/, lines \d+–\d+\.$/.test(c.summary) && (
-                    <p className="mb-2.5 text-[14px] leading-relaxed text-ink-2">{c.summary}</p>
+                    <p className="mb-2.5 text-[14px] leading-relaxed text-ink-2">
+                      <InlineCode text={c.summary} />
+                    </p>
                   )}
                   <CodeBlock
                     code={c.content}
